@@ -66,30 +66,42 @@ export async function resolveMapsUrl(env: Env, url: string): Promise<ResolvedPla
   }
 
   // Try to extract a place name or search query from the URL
-  // URLs look like: https://www.google.com/maps/place/Place+Name/...
-  // or: https://www.google.com/maps/search/query/...
   let searchQuery = '';
 
-  const placeMatch = finalUrl.match(/\/place\/([^/@]+)/);
-  if (placeMatch) {
-    searchQuery = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+  // Check for ?q= parameter (common in short link redirects)
+  try {
+    const parsed = new URL(finalUrl);
+    const qParam = parsed.searchParams.get('q');
+    if (qParam) {
+      searchQuery = qParam;
+    }
+  } catch {
+    // not a valid URL, continue with regex
   }
 
-  const searchMatch = finalUrl.match(/\/search\/([^/@]+)/);
-  if (!searchQuery && searchMatch) {
-    searchQuery = decodeURIComponent(searchMatch[1].replace(/\+/g, ' '));
+  // URLs like: /place/Place+Name/...
+  if (!searchQuery) {
+    const placeMatch = finalUrl.match(/\/place\/([^/@]+)/);
+    if (placeMatch) {
+      searchQuery = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+    }
   }
 
-  // Try to extract coordinates as additional context
+  // URLs like: /search/query/...
+  if (!searchQuery) {
+    const searchMatch = finalUrl.match(/\/search\/([^/@]+)/);
+    if (searchMatch) {
+      searchQuery = decodeURIComponent(searchMatch[1].replace(/\+/g, ' '));
+    }
+  }
+
+  // Try to extract coordinates as fallback
   const coordMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-
   if (!searchQuery && coordMatch) {
-    // If we only have coordinates, use reverse geocoding via text search
     searchQuery = `${coordMatch[1]},${coordMatch[2]}`;
   }
 
   if (!searchQuery) {
-    // Last resort: use the whole URL as a text search query
     searchQuery = url;
   }
 
