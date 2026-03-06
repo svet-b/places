@@ -58,19 +58,23 @@ Single sheet (tab) named `places` with the following columns:
 |--------|---------|-------------------------------------|------------------------------------------|
 | id     | string  | `a1b2c3d4`                          | Random 8-char alphanumeric, generated client-side |
 | name   | string  | `Boot Café`                         |                                          |
+| priority | integer | 2                                 | Number between 1 (highest) and 3 (lowest)  |
 | category | string | `coffee`                           | One of: coffee, restaurant, bar, bakery, shop, park, culture, other |
+| cuisine | string | `Italian`                           | Free text                                 |
 | address | string | `19 Rue du Pont aux Choux, 75003`  |                                          |
 | lat    | number  | `48.8634`                           | From Google Places API                   |
 | lng    | number  | `2.3631`                            | From Google Places API                   |
-| google_place_id | string | `ChIJ...`                    | Optional, from Places API                |
+| google_place_id | string | `ChIJ...`                    | Optional, from Google Places API                |
+| google_maps_url | string | `https://www.google.com/maps/place/?q=place_id:ChIJ...` | Optional, from Google Places API (or concatenated) |
 | source | string  | `Instagram — @specialtycoffee`      | Free text: who/where the recommendation came from |
+| list   | string  | `50 best coffee shops in Paris`     | Free text: sometimes on a list            |
 | notes  | string  | `Tiny but excellent`                | Personal notes                           |
 | visited | boolean | `FALSE`                            | Whether you've been                      |
 | date_added | date | `2026-01-28`                       | ISO date string                          |
 | screenshot_url | string | `https://drive.google.com/...` | Google Drive link to uploaded screenshot  |
 | city   | string  | `Paris`                             | Enables multi-city support               |
 
-This schema is intentionally flat. Google Sheets is the source of truth, and you can add columns freely (e.g. `price_range`, `cuisine`, `rating`) without changing backend code — the API just reads/writes rows generically.
+This schema is intentionally flat. Google Sheets is the source of truth, and you can add columns freely (e.g. `price_range`, `rating`) without changing backend code — the API just reads/writes rows generically.
 
 
 ## Frontend
