@@ -49,3 +49,32 @@ export function deletePlace(id: string): Promise<void> {
     if (!resp.ok) throw new Error(`API error ${resp.status}`);
   });
 }
+
+export interface AnalyzeResult {
+  merged: {
+    name: string;
+    category: string;
+    address: string;
+    city: string;
+    lat: number;
+    lng: number;
+    google_place_id: string;
+    google_maps_url: string;
+    source: string;
+    notes: string;
+  };
+}
+
+export function analyzeScreenshot(imageBase64: string): Promise<AnalyzeResult> {
+  return request<AnalyzeResult>('/analyze-screenshot', {
+    method: 'POST',
+    body: JSON.stringify({ image: imageBase64 }),
+  });
+}
+
+export function uploadImage(imageBase64: string, filename: string): Promise<{ url: string }> {
+  return request<{ url: string }>('/upload-image', {
+    method: 'POST',
+    body: JSON.stringify({ image: imageBase64, filename }),
+  });
+}

@@ -240,6 +240,15 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
             <p style={{ margin: '8px 0', fontSize: 14, color: '#333', fontStyle: 'italic' }}>{place.notes}</p>
           )}
 
+          {place.screenshot_url && (
+            <img
+              src={place.screenshot_url}
+              alt="Screenshot"
+              loading="lazy"
+              style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, marginTop: 8 }}
+            />
+          )}
+
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <button
               onClick={() => onToggleVisited(place)}

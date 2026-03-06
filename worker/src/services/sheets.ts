@@ -1,6 +1,6 @@
 import { Env } from '../index';
 
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
@@ -75,7 +75,7 @@ async function createSignedJwt(env: Env): Promise<string> {
   return `${signingInput}.${base64url(signature)}`;
 }
 
-async function getAccessToken(env: Env): Promise<string> {
+export async function getAccessToken(env: Env): Promise<string> {
   // Return cached token if still valid (with 5-min buffer)
   if (cachedToken && Date.now() < cachedToken.expiry) {
     return cachedToken.token;

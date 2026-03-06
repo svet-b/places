@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Place, NewPlace } from './types';
 import * as api from './api/client';
 import { CATEGORIES } from './constants';
@@ -11,6 +11,7 @@ import { CategoryFilter } from './components/CategoryFilter';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
+import { ScreenshotUpload } from './components/ScreenshotUpload';
 
 function generateId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -23,17 +24,48 @@ function generateId(): string {
   return id;
 }
 
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+type SortMode = 'date' | 'name' | 'distance';
+type AddMode = 'manual' | 'screenshot' | null;
+
 export function App() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [addMode, setAddMode] = useState<AddMode>(null);
   const [view, setView] = useState<'map' | 'list'>('list');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(CATEGORIES));
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>(
+    () => (localStorage.getItem('places-sort') as SortMode) || 'date',
+  );
+  const [activeCity, setActiveCity] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const geo = useGeolocation();
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Persist sort preference
+  useEffect(() => {
+    localStorage.setItem('places-sort', sortMode);
+  }, [sortMode]);
 
   useEffect(() => {
     api.getPlaces()
@@ -48,9 +80,61 @@ export function App() {
       .catch(() => {});
   }, []);
 
-  const handleAdd = useCallback(async (newPlace: NewPlace) => {
+  const refresh = useCallback(async () => {
+    try {
+      const fresh = await api.getPlaces();
+      setPlaces(fresh);
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Failed to refresh');
+    }
+  }, []);
+
+  // Derive city list from data
+  const cities = useMemo(
+    () => [...new Set(places.map((p) => p.city).filter(Boolean))].sort(),
+    [places],
+  );
+
+  // Filter + sort
+  const filteredPlaces = useMemo(() => {
+    let result = places.filter((p) => activeCategories.has(p.category));
+
+    if (activeCity) {
+      result = result.filter((p) => p.city === activeCity);
+    }
+
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.address.toLowerCase().includes(q) ||
+          p.cuisine.toLowerCase().includes(q) ||
+          p.notes.toLowerCase().includes(q) ||
+          p.source.toLowerCase().includes(q),
+      );
+    }
+
+    if (sortMode === 'name') {
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortMode === 'distance' && geo.location) {
+      result = [...result].sort((a, b) => {
+        const da = a.lat && a.lng ? haversineDistance(geo.location!.lat, geo.location!.lng, Number(a.lat), Number(a.lng)) : Infinity;
+        const db = b.lat && b.lng ? haversineDistance(geo.location!.lat, geo.location!.lng, Number(b.lat), Number(b.lng)) : Infinity;
+        return da - db;
+      });
+    } else {
+      // date (newest first)
+      result = [...result].sort((a, b) => (b.date_added || '').localeCompare(a.date_added || ''));
+    }
+
+    return result;
+  }, [places, activeCategories, activeCity, debouncedSearch, sortMode, geo.location]);
+
+  const handleAdd = useCallback(async (newPlace: NewPlace, imageBase64?: string) => {
+    const id = generateId();
     const place: Place = {
-      id: generateId(),
+      id,
       name: newPlace.name,
       priority: newPlace.priority ?? 2,
       category: newPlace.category || 'other',
@@ -71,18 +155,31 @@ export function App() {
 
     // Optimistic add
     setPlaces((prev) => [place, ...prev]);
-    setShowForm(false);
+    setAddMode(null);
 
     try {
       await api.createPlace(place);
     } catch {
-      setPlaces((prev) => prev.filter((p) => p.id !== place.id));
+      setPlaces((prev) => prev.filter((p) => p.id !== id));
       setToast('Failed to add place');
+      return;
+    }
+
+    // Upload screenshot in background if provided
+    if (imageBase64) {
+      try {
+        const { url } = await api.uploadImage(imageBase64, `${id}.jpg`);
+        await api.updatePlace(id, { screenshot_url: url });
+        setPlaces((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, screenshot_url: url } : p)),
+        );
+      } catch {
+        setToast('Place saved but screenshot upload failed');
+      }
     }
   }, []);
 
   const handleUpdate = useCallback((id: string, updates: Partial<Place>) => {
-    // Save snapshot for rollback
     let snapshot: Place | undefined;
 
     setPlaces((prev) =>
@@ -95,7 +192,6 @@ export function App() {
       }),
     );
 
-    // Update selectedPlace if it's the one being edited
     setSelectedPlace((prev) => {
       if (prev?.id === id) {
         return { ...prev, ...updates };
@@ -154,8 +250,6 @@ export function App() {
     setSelectedPlace(place);
   }, []);
 
-  const filteredPlaces = places.filter((p) => activeCategories.has(p.category));
-
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
@@ -168,34 +262,158 @@ export function App() {
           paddingTop: 'max(12px, env(safe-area-inset-top))',
           borderBottom: '1px solid #eee',
           flexShrink: 0,
+          gap: 8,
         }}
       >
-        <h1 style={{ fontSize: 20, margin: 0 }}>Places</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          style={{
-            padding: '6px 14px',
-            borderRadius: 8,
-            border: 'none',
-            background: '#111',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: 13,
-          }}
-        >
-          {showForm ? 'Cancel' : '+ Add'}
-        </button>
+        <h1 style={{ fontSize: 20, margin: 0, flexShrink: 0 }}>Places</h1>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={refresh}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid #ddd',
+              background: '#fff',
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            Refresh
+          </button>
+          {addMode ? (
+            <button
+              onClick={() => setAddMode(null)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                border: '1px solid #ddd',
+                background: '#fff',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Cancel
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setAddMode('manual')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#111',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                + Add
+              </button>
+              <button
+                onClick={() => setAddMode('screenshot')}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#555',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                + Screenshot
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
-      {/* Category filter */}
+      {/* City filter + Category filter */}
       <div style={{ padding: '0 16px', flexShrink: 0 }}>
+        {cities.length > 1 && (
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '6px 0' }}>
+            <button
+              onClick={() => setActiveCity(null)}
+              style={{
+                padding: '3px 10px',
+                borderRadius: 16,
+                border: '1px solid #ddd',
+                background: activeCity === null ? '#111' : '#fff',
+                color: activeCity === null ? '#fff' : '#333',
+                fontSize: 12,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              All cities
+            </button>
+            {cities.map((city) => (
+              <button
+                key={city}
+                onClick={() => setActiveCity(activeCity === city ? null : city)}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: 16,
+                  border: '1px solid #ddd',
+                  background: activeCity === city ? '#111' : '#fff',
+                  color: activeCity === city ? '#fff' : '#333',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+        )}
         <CategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
       </div>
 
       {/* Add form */}
-      {showForm && (
+      {addMode === 'manual' && (
         <div style={{ padding: '0 16px' }}>
-          <AddPlaceForm onSubmit={handleAdd} />
+          <AddPlaceForm onSubmit={handleAdd} mapsLoaded={mapsLoaded} />
+        </div>
+      )}
+
+      {addMode === 'screenshot' && (
+        <div style={{ padding: '0 16px' }}>
+          <ScreenshotUpload onSubmit={handleAdd} onCancel={() => setAddMode(null)} />
+        </div>
+      )}
+
+      {/* Search + sort (list view only) */}
+      {view === 'list' && !addMode && (
+        <div style={{ padding: '4px 16px 0', display: 'flex', gap: 8, flexShrink: 0 }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search..."
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid #ddd',
+              fontSize: 14,
+            }}
+          />
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            style={{
+              padding: '6px 8px',
+              borderRadius: 8,
+              border: '1px solid #ddd',
+              fontSize: 13,
+              background: '#fff',
+            }}
+          >
+            <option value="date">Newest</option>
+            <option value="name">A-Z</option>
+            {geo.location && <option value="distance">Nearest</option>}
+          </select>
         </div>
       )}
 
@@ -204,7 +422,12 @@ export function App() {
         {loading ? (
           <p style={{ padding: 16, color: '#888' }}>Loading places...</p>
         ) : view === 'list' ? (
-          <ListView places={filteredPlaces} onSelectPlace={handleSelectPlace} />
+          <ListView
+            places={filteredPlaces}
+            onSelectPlace={handleSelectPlace}
+            userLocation={geo.location}
+            showDistance={sortMode === 'distance'}
+          />
         ) : mapsLoaded ? (
           <MapView
             places={places}
