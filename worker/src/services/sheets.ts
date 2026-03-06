@@ -29,8 +29,9 @@ function base64urlEncode(str: string): string {
 }
 
 async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  // Strip PEM headers and decode
+  // Normalize literal \n sequences to actual newlines, then strip PEM headers
   const pemContents = pem
+    .replace(/\\n/g, '\n')
     .replace(/-----BEGIN PRIVATE KEY-----/, '')
     .replace(/-----END PRIVATE KEY-----/, '')
     .replace(/-----BEGIN RSA PRIVATE KEY-----/, '')
