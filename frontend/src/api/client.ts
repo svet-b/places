@@ -31,3 +31,21 @@ export function createPlace(place: NewPlace): Promise<Place> {
     body: JSON.stringify(place),
   });
 }
+
+export function updatePlace(id: string, updates: Partial<Place>): Promise<Place> {
+  return request<Place>(`/places/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+}
+
+export function deletePlace(id: string): Promise<void> {
+  return fetch(`${API_URL}/places/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+    },
+  }).then((resp) => {
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+  });
+}

@@ -138,6 +138,122 @@ export async function getPlaces(env: Env): Promise<Place[]> {
   });
 }
 
+export async function updatePlace(env: Env, id: string, updates: Partial<Place>): Promise<Place | null> {
+  const token = await getAccessToken(env);
+  const url = `${SHEETS_BASE}/${env.SPREADSHEET_ID}/values/places!A:Q`;
+
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Sheets API error: ${resp.status} ${text}`);
+  }
+
+  const data = (await resp.json()) as { values?: string[][] };
+  const rows = data.values;
+  if (!rows || rows.length < 2) return null;
+
+  const headerRow = rows[0];
+  const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === id);
+  if (rowIndex === -1) return null;
+
+  // Merge updates into existing row
+  const existingPlace: Record<string, string> = {};
+  headerRow.forEach((key, i) => {
+    existingPlace[key] = rows[rowIndex][i] ?? '';
+  });
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (key in existingPlace) {
+      existingPlace[key] = String(value ?? '');
+    }
+  }
+
+  const updatedRow = HEADERS.map((key) => existingPlace[key] ?? '');
+  const range = `places!A${rowIndex + 1}:Q${rowIndex + 1}`;
+  const updateUrl = `${SHEETS_BASE}/${env.SPREADSHEET_ID}/values/${range}?valueInputOption=RAW`;
+
+  const updateResp = await fetch(updateUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ values: [updatedRow] }),
+  });
+
+  if (!updateResp.ok) {
+    const text = await updateResp.text();
+    throw new Error(`Sheets API error: ${updateResp.status} ${text}`);
+  }
+
+  return existingPlace as Place;
+}
+
+export async function deletePlace(env: Env, id: string): Promise<boolean> {
+  const token = await getAccessToken(env);
+  const url = `${SHEETS_BASE}/${env.SPREADSHEET_ID}/values/places!A:Q`;
+
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Sheets API error: ${resp.status} ${text}`);
+  }
+
+  const data = (await resp.json()) as { values?: string[][] };
+  const rows = data.values;
+  if (!rows || rows.length < 2) return false;
+
+  const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === id);
+  if (rowIndex === -1) return false;
+
+  // Need the sheet's numeric ID for deleteDimension
+  const metaUrl = `${SHEETS_BASE}/${env.SPREADSHEET_ID}?fields=sheets.properties`;
+  const metaResp = await fetch(metaUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const metaData = (await metaResp.json()) as {
+    sheets: { properties: { sheetId: number; title: string } }[];
+  };
+  const sheet = metaData.sheets.find((s) => s.properties.title === 'places');
+  const sheetId = sheet?.properties.sheetId ?? 0;
+
+  const deleteUrl = `${SHEETS_BASE}/${env.SPREADSHEET_ID}:batchUpdate`;
+  const deleteResp = await fetch(deleteUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1,
+            },
+          },
+        },
+      ],
+    }),
+  });
+
+  if (!deleteResp.ok) {
+    const text = await deleteResp.text();
+    throw new Error(`Sheets API error: ${deleteResp.status} ${text}`);
+  }
+
+  return true;
+}
+
 export async function appendPlace(env: Env, place: Partial<Place>): Promise<Partial<Place>> {
   const token = await getAccessToken(env);
   const url = `${SHEETS_BASE}/${env.SPREADSHEET_ID}/values/places!A:Q:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;

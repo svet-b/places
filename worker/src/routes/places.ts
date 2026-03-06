@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { Env } from '../index';
-import { getPlaces, appendPlace } from '../services/sheets';
+import { getPlaces, appendPlace, updatePlace, deletePlace } from '../services/sheets';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -38,6 +38,29 @@ app.post('/places', async (c) => {
 
   const created = await appendPlace(c.env, place);
   return c.json(created, 201);
+});
+
+app.put('/places/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json();
+
+  const updated = await updatePlace(c.env, id, body);
+  if (!updated) {
+    return c.json({ error: 'Place not found' }, 404);
+  }
+
+  return c.json(updated);
+});
+
+app.delete('/places/:id', async (c) => {
+  const id = c.req.param('id');
+
+  const deleted = await deletePlace(c.env, id);
+  if (!deleted) {
+    return c.json({ error: 'Place not found' }, 404);
+  }
+
+  return c.body(null, 204);
 });
 
 function generateId(): string {
