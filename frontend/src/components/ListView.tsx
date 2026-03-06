@@ -2,6 +2,7 @@ import { Place } from '../types';
 
 interface Props {
   places: Place[];
+  onSelectPlace?: (place: Place) => void;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -15,7 +16,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: '#708090',
 };
 
-export function ListView({ places }: Props) {
+export function ListView({ places, onSelectPlace }: Props) {
   if (places.length === 0) {
     return <p style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>No places yet. Add one to get started!</p>;
   }
@@ -25,12 +26,14 @@ export function ListView({ places }: Props) {
       {places.map((place) => (
         <li
           key={place.id}
+          onClick={() => onSelectPlace?.(place)}
           style={{
             padding: 12,
             borderBottom: '1px solid #eee',
             display: 'flex',
             gap: 12,
             alignItems: 'flex-start',
+            cursor: onSelectPlace ? 'pointer' : undefined,
           }}
         >
           <span
