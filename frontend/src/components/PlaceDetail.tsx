@@ -24,6 +24,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [screenshotEnlarged, setScreenshotEnlarged] = useState(false);
   const [form, setForm] = useState({
     name: place.name,
     category: place.category,
@@ -241,12 +242,39 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
           )}
 
           {place.screenshot_url && (
-            <img
-              src={place.screenshot_url}
-              alt="Screenshot"
-              loading="lazy"
-              style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, marginTop: 8 }}
-            />
+            <>
+              <img
+                src={place.screenshot_url}
+                alt="Screenshot"
+                loading="lazy"
+                onClick={() => setScreenshotEnlarged(true)}
+                style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, marginTop: 8, cursor: 'pointer' }}
+              />
+              {screenshotEnlarged && (
+                <div
+                  onClick={() => setScreenshotEnlarged(false)}
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.9)',
+                    zIndex: 2000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <img
+                    src={place.screenshot_url}
+                    alt="Screenshot"
+                    style={{ maxWidth: '95vw', maxHeight: '95vh', objectFit: 'contain' }}
+                  />
+                </div>
+              )}
+            </>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>

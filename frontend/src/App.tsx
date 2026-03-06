@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Place, NewPlace } from './types';
 import * as api from './api/client';
-import { CATEGORIES } from './constants';
 import { useGeolocation } from './hooks/useGeolocation';
 import { loadGoogleMaps } from './loadMaps';
 import { ListView } from './components/ListView';
@@ -42,7 +41,7 @@ export function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [view, setView] = useState<'map' | 'list'>('map');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(CATEGORIES));
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set());
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(
