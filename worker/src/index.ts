@@ -12,12 +12,24 @@ export type Env = {
   SPREADSHEET_ID: string;
   ANTHROPIC_API_KEY: string;
   GOOGLE_PLACES_API_KEY: string;
-  DRIVE_FOLDER_ID: string;
+  SCREENSHOTS_BUCKET: R2Bucket;
 };
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.use('*', cors());
+
+// Public route: serve screenshots without auth
+app.get('/screenshots/:key', async (c) => {
+  const key = c.req.param('key');
+  const object = await c.env.SCREENSHOTS_BUCKET.get(key);
+  if (!object) return c.notFound();
+  const headers = new Headers();
+  headers.set('Content-Type', object.httpMetadata?.contentType || 'image/jpeg');
+  headers.set('Cache-Control', 'public, max-age=31536000');
+  return new Response(object.body, { headers });
+});
+
 app.use('*', authMiddleware);
 
 app.route('/', placesRoutes);

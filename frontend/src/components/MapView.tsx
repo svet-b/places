@@ -23,6 +23,7 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
   // Initialize map
@@ -85,11 +86,34 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     if (mapReady) updateMarkers();
   }, [mapReady, updateMarkers]);
 
-  // Pan to user location when it changes
+  // User location blue dot
   useEffect(() => {
-    if (mapInstanceRef.current && userLocation) {
-      mapInstanceRef.current.panTo(userLocation);
+    const map = mapInstanceRef.current;
+    if (!map || !userLocation) return;
+
+    // Remove previous user marker
+    if (userMarkerRef.current) {
+      userMarkerRef.current.map = null;
     }
+
+    const dot = document.createElement('div');
+    dot.style.width = '14px';
+    dot.style.height = '14px';
+    dot.style.borderRadius = '50%';
+    dot.style.background = '#4285F4';
+    dot.style.border = '3px solid #fff';
+    dot.style.boxShadow = '0 0 6px rgba(66,133,244,0.5)';
+
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+      map,
+      position: userLocation,
+      content: dot,
+      title: 'Your location',
+      zIndex: 9999,
+    });
+
+    userMarkerRef.current = marker;
+    map.panTo(userLocation);
   }, [userLocation]);
 
   return (

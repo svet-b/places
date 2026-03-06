@@ -72,6 +72,23 @@ export function analyzeScreenshot(imageBase64: string): Promise<AnalyzeResult> {
   });
 }
 
+export interface ResolvedPlace {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  google_place_id: string;
+  google_maps_url: string;
+  city: string;
+}
+
+export function resolveUrl(url: string): Promise<ResolvedPlace> {
+  return request<ResolvedPlace>('/resolve-url', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+}
+
 export function uploadImage(imageBase64: string, filename: string): Promise<{ url: string }> {
   return request<{ url: string }>('/upload-image', {
     method: 'POST',

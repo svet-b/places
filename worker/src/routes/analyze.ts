@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../index';
 import { analyzeScreenshot } from '../services/vision';
-import { resolvePlace } from '../services/places-api';
+import { resolvePlace, resolveMapsUrl } from '../services/places-api';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -22,9 +22,11 @@ app.post('/analyze-screenshot', async (c) => {
   let resolved = null;
   if (analysis.name) {
     try {
-      resolved = await resolvePlace(c.env, analysis.name, analysis.city ?? undefined);
-    } catch {
-      // Resolution failed — return analysis only
+      // Always include city context for better results
+      const city = analysis.city || 'Paris';
+      resolved = await resolvePlace(c.env, analysis.name, city);
+    } catch (e) {
+      console.error('Place resolution failed:', e);
     }
   }
 
@@ -35,7 +37,7 @@ app.post('/analyze-screenshot', async (c) => {
       name: resolved?.name ?? analysis.name ?? '',
       category: analysis.category ?? 'other',
       address: resolved?.address ?? analysis.address_hint ?? '',
-      city: resolved?.city ?? analysis.city ?? '',
+      city: resolved?.city ?? analysis.city ?? 'Paris',
       lat: resolved?.lat ?? 0,
       lng: resolved?.lng ?? 0,
       google_place_id: resolved?.google_place_id ?? '',
@@ -53,12 +55,31 @@ app.post('/resolve-place', async (c) => {
     return c.json({ error: 'name is required' }, 400);
   }
 
-  const resolved = await resolvePlace(c.env, body.name, body.city);
+  const resolved = await resolvePlace(c.env, body.name, body.city || 'Paris');
   if (!resolved) {
     return c.json({ error: 'Place not found' }, 404);
   }
 
   return c.json(resolved);
+});
+
+app.post('/resolve-url', async (c) => {
+  const body = await c.req.json<{ url: string }>();
+
+  if (!body.url) {
+    return c.json({ error: 'url is required' }, 400);
+  }
+
+  try {
+    const resolved = await resolveMapsUrl(c.env, body.url);
+    if (!resolved) {
+      return c.json({ error: 'Could not resolve URL' }, 404);
+    }
+    return c.json(resolved);
+  } catch (e) {
+    console.error('URL resolution failed:', e);
+    return c.json({ error: 'Failed to resolve URL' }, 500);
+  }
 });
 
 export default app;

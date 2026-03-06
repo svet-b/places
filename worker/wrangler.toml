@@ -1,3 +1,7 @@
 name = "places-api"
 main = "src/index.ts"
 compatibility_date = "2026-03-06"
+
+[[r2_buckets]]
+binding = "SCREENSHOTS_BUCKET"
+bucket_name = "places-screenshots"

@@ -6,12 +6,11 @@ import { useGeolocation } from './hooks/useGeolocation';
 import { loadGoogleMaps } from './loadMaps';
 import { ListView } from './components/ListView';
 import { MapView } from './components/MapView';
-import { AddPlaceForm } from './components/AddPlaceForm';
+import { AddPlacePanel } from './components/AddPlacePanel';
 import { CategoryFilter } from './components/CategoryFilter';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
-import { ScreenshotUpload } from './components/ScreenshotUpload';
 
 function generateId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -36,13 +35,12 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 type SortMode = 'date' | 'name' | 'distance';
-type AddMode = 'manual' | 'screenshot' | null;
 
 export function App() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
-  const [addMode, setAddMode] = useState<AddMode>(null);
-  const [view, setView] = useState<'map' | 'list'>('list');
+  const [showAdd, setShowAdd] = useState(false);
+  const [view, setView] = useState<'map' | 'list'>('map');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(CATEGORIES));
   const [mapsLoaded, setMapsLoaded] = useState(false);
@@ -124,7 +122,6 @@ export function App() {
         return da - db;
       });
     } else {
-      // date (newest first)
       result = [...result].sort((a, b) => (b.date_added || '').localeCompare(a.date_added || ''));
     }
 
@@ -150,12 +147,11 @@ export function App() {
       visited: false,
       date_added: new Date().toISOString().split('T')[0] ?? '',
       screenshot_url: '',
-      city: newPlace.city ?? '',
+      city: newPlace.city || 'Paris',
     };
 
-    // Optimistic add
     setPlaces((prev) => [place, ...prev]);
-    setAddMode(null);
+    setShowAdd(false);
 
     try {
       await api.createPlace(place);
@@ -280,52 +276,20 @@ export function App() {
           >
             Refresh
           </button>
-          {addMode ? (
-            <button
-              onClick={() => setAddMode(null)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 8,
-                border: '1px solid #ddd',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
-            >
-              Cancel
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={() => setAddMode('manual')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: '#111',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
-              >
-                + Add
-              </button>
-              <button
-                onClick={() => setAddMode('screenshot')}
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: '#555',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
-              >
-                + Screenshot
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 8,
+              border: 'none',
+              background: showAdd ? '#666' : '#111',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            {showAdd ? 'Cancel' : '+ Add'}
+          </button>
         </div>
       </header>
 
@@ -371,21 +335,19 @@ export function App() {
         <CategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
       </div>
 
-      {/* Add form */}
-      {addMode === 'manual' && (
-        <div style={{ padding: '0 16px' }}>
-          <AddPlaceForm onSubmit={handleAdd} mapsLoaded={mapsLoaded} />
-        </div>
-      )}
-
-      {addMode === 'screenshot' && (
-        <div style={{ padding: '0 16px' }}>
-          <ScreenshotUpload onSubmit={handleAdd} onCancel={() => setAddMode(null)} />
+      {/* Add place panel */}
+      {showAdd && (
+        <div style={{ padding: '0 16px', flexShrink: 0 }}>
+          <AddPlacePanel
+            onSubmit={handleAdd}
+            onCancel={() => setShowAdd(false)}
+            mapsLoaded={mapsLoaded}
+          />
         </div>
       )}
 
       {/* Search + sort (list view only) */}
-      {view === 'list' && !addMode && (
+      {view === 'list' && !showAdd && (
         <div style={{ padding: '4px 16px 0', display: 'flex', gap: 8, flexShrink: 0 }}>
           <input
             value={search}

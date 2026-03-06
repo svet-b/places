@@ -1,6 +1,6 @@
 import { Env } from '../index';
 
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 

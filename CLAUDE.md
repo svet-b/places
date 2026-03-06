@@ -15,9 +15,15 @@ The worker authenticates with Google APIs using a **service account**. Since the
 1. Build a JWT from the service account credentials
 2. Sign it using Web Crypto API (`crypto.subtle.importKey` + `crypto.subtle.sign` with RSASSA-PKCS1-v1_5 / SHA-256)
 3. Exchange the JWT for an access token via `https://oauth2.googleapis.com/token`
-4. Use the access token in `Authorization: Bearer` headers on all Google API calls (Sheets, Drive, Places)
+4. Use the access token in `Authorization: Bearer` headers on all Google API calls (Sheets, Places)
 
 **Private key gotcha:** When setting the service account private key via `wrangler secret put GOOGLE_PRIVATE_KEY`, the PEM's newlines get stored as literal `\n` strings. The code in `worker/src/services/sheets.ts` normalizes these with `.replace(/\\n/g, '\n')` before decoding. Without this, `atob()` will fail with `InvalidCharacterError`.
+
+### Screenshot Storage
+
+Screenshots are stored in **Cloudflare R2** (not Google Drive — service accounts have no storage quota and can't upload to Drive). The R2 bucket is `places-screenshots`, bound as `SCREENSHOTS_BUCKET` in wrangler.toml. Screenshots are served publicly via `GET /screenshots/:key` (no auth).
+
+**Google Drive does NOT work for service account uploads** — Google returns "storageQuotaExceeded" even when uploading to a shared folder, because the SA becomes the file owner.
 
 ### Deployment
 
@@ -32,6 +38,8 @@ Secrets (set once via `npx wrangler secret put <NAME>`):
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` — `client_email` from service account JSON
 - `GOOGLE_PRIVATE_KEY` — `private_key` from service account JSON
 - `SPREADSHEET_ID` — from the Google Sheets URL
+- `ANTHROPIC_API_KEY` — for Claude Vision screenshot analysis
+- `GOOGLE_PLACES_API_KEY` — for Places API (New) text search/resolution. Must have Places API (New) enabled, no HTTP referrer restrictions.
 
 **Frontend:**
 ```sh
@@ -49,8 +57,16 @@ npx wrangler pages deploy dist/ --project-name=places --commit-dirty=true
 - `VITE_API_KEY` — must match the `API_KEY` worker secret
 - `VITE_GOOGLE_MAPS_KEY` — Maps JavaScript API key (separate from the backend service account)
 
+### Google Cloud APIs Required
+
+Enable all of these in Google Cloud Console:
+- **Google Sheets API** — reading/writing places
+- **Maps JavaScript API** — frontend map display
+- **Places API (New)** (`places.googleapis.com`) — backend text search, address resolution. This is different from the legacy "Places API".
+
 ### Google Cloud API Keys
 
-Two separate keys are used:
-1. **Service account** (backend) — for Sheets, Drive, Places APIs. Credentials stored as worker secrets.
-2. **Maps JavaScript API key** (frontend) — restricted to Maps JS API with HTTP referrer restrictions on the domain. This is a different API from "Places API" — both must be enabled separately in Google Cloud Console.
+Three separate credentials:
+1. **Service account** (backend) — for Sheets API. Credentials stored as worker secrets.
+2. **Maps JavaScript API key** (frontend) — `VITE_GOOGLE_MAPS_KEY`, restricted to Maps JS API + Places API with HTTP referrer restrictions on the domain.
+3. **Places API key** (backend) — `GOOGLE_PLACES_API_KEY`, for server-side place resolution. No referrer restrictions.

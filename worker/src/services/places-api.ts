@@ -42,7 +42,6 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
   const place = data.places?.[0];
   if (!place) return null;
 
-  // Try to extract city from address components
   const cityComponent = place.addressComponents?.find(
     (c) => c.types.includes('locality'),
   );
@@ -56,4 +55,43 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
     google_maps_url: place.googleMapsUri,
     city: cityComponent?.longText ?? city ?? '',
   };
+}
+
+export async function resolveMapsUrl(env: Env, url: string): Promise<ResolvedPlace | null> {
+  // Follow redirects to get the final URL (handles maps.app.goo.gl short links)
+  let finalUrl = url;
+  if (url.includes('goo.gl') || url.includes('maps.app')) {
+    const resp = await fetch(url, { redirect: 'follow' });
+    finalUrl = resp.url;
+  }
+
+  // Try to extract a place name or search query from the URL
+  // URLs look like: https://www.google.com/maps/place/Place+Name/...
+  // or: https://www.google.com/maps/search/query/...
+  let searchQuery = '';
+
+  const placeMatch = finalUrl.match(/\/place\/([^/@]+)/);
+  if (placeMatch) {
+    searchQuery = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+  }
+
+  const searchMatch = finalUrl.match(/\/search\/([^/@]+)/);
+  if (!searchQuery && searchMatch) {
+    searchQuery = decodeURIComponent(searchMatch[1].replace(/\+/g, ' '));
+  }
+
+  // Try to extract coordinates as additional context
+  const coordMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+
+  if (!searchQuery && coordMatch) {
+    // If we only have coordinates, use reverse geocoding via text search
+    searchQuery = `${coordMatch[1]},${coordMatch[2]}`;
+  }
+
+  if (!searchQuery) {
+    // Last resort: use the whole URL as a text search query
+    searchQuery = url;
+  }
+
+  return resolvePlace(env, searchQuery);
 }
