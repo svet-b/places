@@ -57,28 +57,48 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
   };
 }
 
-// In-memory cache: google_place_id -> { openNow: boolean | null, fetchedAt: number }
-const openStatusCache = new Map<string, { openNow: boolean | null; fetchedAt: number }>();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+export interface HoursPeriod {
+  open: { day: number; hour: number; minute: number };
+  close: { day: number; hour: number; minute: number };
+}
 
-export async function getOpenStatus(
+export interface PlaceHoursInfo {
+  openNow: boolean | null;
+  periods: HoursPeriod[] | null;
+}
+
+// Separate caches with different TTLs
+const openNowCache = new Map<string, { openNow: boolean | null; fetchedAt: number }>();
+const periodsCache = new Map<string, { periods: HoursPeriod[] | null; fetchedAt: number }>();
+const OPEN_NOW_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const PERIODS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export async function getPlaceHours(
   env: Env,
   placeIds: string[],
-): Promise<Record<string, boolean | null>> {
+): Promise<Record<string, PlaceHoursInfo>> {
   const now = Date.now();
-  const result: Record<string, boolean | null> = {};
-  const toFetch: string[] = [];
+  const result: Record<string, PlaceHoursInfo> = {};
+  const toFetchOpenNow: string[] = [];
+  const toFetchPeriods: string[] = [];
 
   for (const id of placeIds) {
-    const cached = openStatusCache.get(id);
-    if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
-      result[id] = cached.openNow;
+    const cachedNow = openNowCache.get(id);
+    const cachedPeriods = periodsCache.get(id);
+    const nowValid = cachedNow && now - cachedNow.fetchedAt < OPEN_NOW_TTL_MS;
+    const periodsValid = cachedPeriods && now - cachedPeriods.fetchedAt < PERIODS_TTL_MS;
+
+    if (nowValid && periodsValid) {
+      result[id] = { openNow: cachedNow.openNow, periods: cachedPeriods.periods };
     } else {
-      toFetch.push(id);
+      if (!nowValid) toFetchOpenNow.push(id);
+      if (!periodsValid) toFetchPeriods.push(id);
     }
   }
 
-  // Fetch in parallel, max 10 concurrent to be safe
+  // Combine IDs that need any fetch — we'll get both fields in one API call
+  const toFetch = [...new Set([...toFetchOpenNow, ...toFetchPeriods])];
+
   const batchSize = 10;
   for (let i = 0; i < toFetch.length; i += batchSize) {
     const batch = toFetch.slice(i, i + batchSize);
@@ -90,24 +110,47 @@ export async function getOpenStatus(
             {
               headers: {
                 'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
-                'X-Goog-FieldMask': 'currentOpeningHours.openNow',
+                'X-Goog-FieldMask': 'currentOpeningHours.openNow,regularOpeningHours.periods',
               },
             },
           );
-          if (!resp.ok) return { placeId, openNow: null as boolean | null };
+          if (!resp.ok) return { placeId, openNow: null as boolean | null, periods: null as HoursPeriod[] | null };
           const data = (await resp.json()) as {
             currentOpeningHours?: { openNow?: boolean };
+            regularOpeningHours?: {
+              periods?: { open: { day: number; hour: number; minute: number }; close?: { day: number; hour: number; minute: number } }[];
+            };
           };
           const openNow = data.currentOpeningHours?.openNow ?? null;
-          return { placeId, openNow };
+          const periods: HoursPeriod[] | null = data.regularOpeningHours?.periods
+            ?.filter((p): p is { open: { day: number; hour: number; minute: number }; close: { day: number; hour: number; minute: number } } => !!p.close)
+            ?? null;
+          return { placeId, openNow, periods };
         } catch {
-          return { placeId, openNow: null as boolean | null };
+          return { placeId, openNow: null as boolean | null, periods: null as HoursPeriod[] | null };
         }
       }),
     );
-    for (const { placeId, openNow } of results) {
-      result[placeId] = openNow;
-      openStatusCache.set(placeId, { openNow, fetchedAt: now });
+    for (const { placeId, openNow, periods } of results) {
+      openNowCache.set(placeId, { openNow, fetchedAt: now });
+      periodsCache.set(placeId, { periods, fetchedAt: now });
+
+      // Merge with any existing cached data
+      const existingNow = openNowCache.get(placeId)!;
+      const existingPeriods = periodsCache.get(placeId)!;
+      result[placeId] = { openNow: existingNow.openNow, periods: existingPeriods.periods };
+    }
+  }
+
+  // Fill in any IDs that had partial cache hits
+  for (const id of placeIds) {
+    if (!result[id]) {
+      const cachedNow = openNowCache.get(id);
+      const cachedPeriods = periodsCache.get(id);
+      result[id] = {
+        openNow: cachedNow?.openNow ?? null,
+        periods: cachedPeriods?.periods ?? null,
+      };
     }
   }
 

@@ -8,6 +8,7 @@ import { ListView } from './components/ListView';
 import { MapView } from './components/MapView';
 import { AddPlacePanel } from './components/AddPlacePanel';
 import { CategoryFilter } from './components/CategoryFilter';
+import { OpenHoursFilter, HoursFilterMode, isOpenAtTime } from './components/OpenHoursFilter';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
@@ -101,9 +102,10 @@ export function App() {
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [openNowFilter, setOpenNowFilter] = useState(false);
-  const [openStatus, setOpenStatus] = useState<Record<string, boolean | null>>({});
-  const [openStatusLoading, setOpenStatusLoading] = useState(false);
+  const [hoursFilterMode, setHoursFilterMode] = useState<HoursFilterMode>('off');
+  const [hoursDateTime, setHoursDateTime] = useState<Date | null>(null);
+  const [placeHours, setPlaceHours] = useState<Record<string, api.PlaceHoursInfo>>({});
+  const [hoursLoading, setHoursLoading] = useState(false);
 
   const geo = useGeolocation();
 
@@ -169,34 +171,40 @@ export function App() {
     return result;
   }, [places, activeCategories, activeCity, debouncedSearch]);
 
-  // Fetch open status when filter is activated
+  // Fetch place hours when filter is activated
   useEffect(() => {
-    if (!openNowFilter) return;
+    if (hoursFilterMode === 'off') return;
     const ids = preFilteredPlaces
       .map((p) => p.google_place_id)
       .filter(Boolean);
     if (ids.length === 0) return;
 
-    // Only fetch IDs we don't already have cached
-    const uncached = ids.filter((id) => !(id in openStatus));
+    const uncached = ids.filter((id) => !(id in placeHours));
     if (uncached.length === 0) return;
 
-    setOpenStatusLoading(true);
-    api.getOpenStatus(uncached)
-      .then((status) => {
-        setOpenStatus((prev) => ({ ...prev, ...status }));
+    setHoursLoading(true);
+    api.getPlaceHours(uncached)
+      .then((hours) => {
+        setPlaceHours((prev) => ({ ...prev, ...hours }));
       })
-      .catch(() => setToast('Failed to check open status'))
-      .finally(() => setOpenStatusLoading(false));
-  }, [openNowFilter, preFilteredPlaces]);
+      .catch(() => setToast('Failed to check opening hours'))
+      .finally(() => setHoursLoading(false));
+  }, [hoursFilterMode, preFilteredPlaces]);
 
   const filteredPlaces = useMemo(() => {
     let result = preFilteredPlaces;
 
-    if (openNowFilter) {
+    if (hoursFilterMode === 'now') {
       result = result.filter((p) => {
         if (!p.google_place_id) return false;
-        return openStatus[p.google_place_id] === true;
+        return placeHours[p.google_place_id]?.openNow === true;
+      });
+    } else if (hoursFilterMode === 'at' && hoursDateTime) {
+      result = result.filter((p) => {
+        if (!p.google_place_id) return false;
+        const info = placeHours[p.google_place_id];
+        if (!info?.periods) return false;
+        return isOpenAtTime(info.periods, hoursDateTime);
       });
     }
 
@@ -213,7 +221,7 @@ export function App() {
     }
 
     return result;
-  }, [preFilteredPlaces, openNowFilter, openStatus, sortMode, geo.location]);
+  }, [preFilteredPlaces, hoursFilterMode, placeHours, hoursDateTime, sortMode, geo.location]);
 
   const handleAdd = useCallback(async (newPlace: NewPlace, imageBase64?: string) => {
     const id = generateId();
@@ -383,16 +391,7 @@ export function App() {
             ))}
           </div>
         )}
-        <CategoryFilter
-          activeCategories={activeCategories}
-          onToggle={handleToggleCategory}
-          openNowFilter={openNowFilter}
-          openNowLoading={openStatusLoading}
-          onToggleOpenNow={() => {
-            setOpenNowFilter((prev) => !prev);
-            if (!openNowFilter) setOpenStatus({});
-          }}
-        />
+        <CategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
       </div>
 
       {/* Add place panel */}
@@ -428,7 +427,17 @@ export function App() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto pb-14">
+      <div className="flex-1 overflow-auto pb-14 relative">
+        <OpenHoursFilter
+          mode={hoursFilterMode}
+          onChangeMode={(mode) => {
+            setHoursFilterMode(mode);
+            if (mode === 'now') setPlaceHours({});
+          }}
+          selectedDateTime={hoursDateTime}
+          onChangeDateTime={setHoursDateTime}
+          loading={hoursLoading}
+        />
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -443,7 +452,7 @@ export function App() {
           />
         ) : mapsLoaded ? (
           <MapView
-            places={openNowFilter ? places.filter((p) => p.google_place_id && openStatus[p.google_place_id] === true) : places}
+            places={hoursFilterMode !== 'off' ? filteredPlaces : places}
             activeCategories={activeCategories}
             userLocation={geo.location}
             onSelectPlace={handleSelectPlace}

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../index';
 import { getPlaces, appendPlace, updatePlace, deletePlace } from '../services/sheets';
-import { getOpenStatus } from '../services/places-api';
+import { getPlaceHours } from '../services/places-api';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -53,15 +53,14 @@ app.put('/places/:id', async (c) => {
   return c.json(updated);
 });
 
-app.post('/places/open-status', async (c) => {
+app.post('/places/hours', async (c) => {
   const body = await c.req.json<{ placeIds: string[] }>();
   if (!Array.isArray(body.placeIds) || body.placeIds.length === 0) {
     return c.json({ error: 'placeIds array is required' }, 400);
   }
-  // Cap at 50 to limit API costs per request
   const ids = body.placeIds.slice(0, 50);
-  const status = await getOpenStatus(c.env, ids);
-  return c.json(status);
+  const hours = await getPlaceHours(c.env, ids);
+  return c.json(hours);
 });
 
 app.delete('/places/:id', async (c) => {

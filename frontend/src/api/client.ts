@@ -133,8 +133,18 @@ export function resolveUrl(url: string): Promise<ResolvedPlace> {
   });
 }
 
-export function getOpenStatus(placeIds: string[]): Promise<Record<string, boolean | null>> {
-  return request<Record<string, boolean | null>>('/places/open-status', {
+export interface HoursPeriod {
+  open: { day: number; hour: number; minute: number };
+  close: { day: number; hour: number; minute: number };
+}
+
+export interface PlaceHoursInfo {
+  openNow: boolean | null;
+  periods: HoursPeriod[] | null;
+}
+
+export function getPlaceHours(placeIds: string[]): Promise<Record<string, PlaceHoursInfo>> {
+  return request<Record<string, PlaceHoursInfo>>('/places/hours', {
     method: 'POST',
     body: JSON.stringify({ placeIds }),
   });
