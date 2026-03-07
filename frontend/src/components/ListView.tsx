@@ -1,4 +1,5 @@
 import { Place } from '../types';
+import { CATEGORY_MAP } from '../constants';
 
 interface Props {
   places: Place[];
@@ -6,17 +7,6 @@ interface Props {
   userLocation?: { lat: number; lng: number } | null;
   showDistance?: boolean;
 }
-
-const CATEGORY_COLORS: Record<string, string> = {
-  coffee: '#8B4513',
-  restaurant: '#DC143C',
-  bar: '#4B0082',
-  bakery: '#D2691E',
-  shop: '#2E8B57',
-  park: '#228B22',
-  culture: '#4169E1',
-  other: '#708090',
-};
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -36,12 +26,18 @@ function formatDistance(km: number): string {
 
 export function ListView({ places, onSelectPlace, userLocation, showDistance }: Props) {
   if (places.length === 0) {
-    return <p style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>No places yet. Add one to get started!</p>;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: '#999' }}>
+        <span style={{ fontSize: 32, marginBottom: 12 }}>📍</span>
+        <p style={{ margin: 0, fontSize: 14 }}>No places match your filters</p>
+      </div>
+    );
   }
 
   return (
     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
       {places.map((place) => {
+        const cat = CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!;
         const dist =
           showDistance && userLocation && place.lat && place.lng
             ? haversineDistance(userLocation.lat, userLocation.lng, Number(place.lat), Number(place.lng))
@@ -52,39 +48,85 @@ export function ListView({ places, onSelectPlace, userLocation, showDistance }: 
             key={place.id}
             onClick={() => onSelectPlace?.(place)}
             style={{
-              padding: 12,
-              borderBottom: '1px solid #eee',
+              padding: '12px 16px',
+              borderBottom: '1px solid #f0f0f0',
               display: 'flex',
               gap: 12,
-              alignItems: 'flex-start',
+              alignItems: 'center',
               cursor: onSelectPlace ? 'pointer' : undefined,
             }}
           >
-            <span
+            <div
               style={{
-                display: 'inline-block',
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: CATEGORY_COLORS[place.category] ?? CATEGORY_COLORS.other,
-                marginTop: 6,
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                background: `${cat.color}15`,
+                border: `1px solid ${cat.color}30`,
                 flexShrink: 0,
               }}
-            />
-            <div style={{ flex: 1 }}>
+            >
+              {cat.emoji}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <div style={{ fontWeight: 600 }}>{place.name}</div>
+                <div style={{
+                  fontWeight: 600,
+                  fontSize: 14,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {place.name}
+                </div>
                 {dist !== null && (
                   <span style={{ fontSize: 12, color: '#999', flexShrink: 0, marginLeft: 8 }}>
                     {formatDistance(dist)}
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 13, color: '#666' }}>
-                {[place.category, place.address, place.city].filter(Boolean).join(' · ')}
+              <div style={{
+                fontSize: 12,
+                color: '#888',
+                marginTop: 2,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {[place.address, place.city].filter(Boolean).join(' · ')}
               </div>
               {place.notes && (
-                <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>{place.notes}</div>
+                <div style={{
+                  fontSize: 12,
+                  color: '#aaa',
+                  marginTop: 2,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {place.notes}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+              <span style={{
+                fontSize: 10,
+                padding: '2px 7px',
+                borderRadius: 6,
+                background: `${cat.color}15`,
+                color: cat.color,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: 0.3,
+              }}>
+                {cat.label}
+              </span>
+              {place.visited && (
+                <span style={{ fontSize: 10, color: '#22C55E', fontWeight: 600 }}>visited</span>
               )}
             </div>
           </li>

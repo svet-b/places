@@ -1,16 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Place } from '../types';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  coffee: '#8B4513',
-  restaurant: '#DC143C',
-  bar: '#4B0082',
-  bakery: '#D2691E',
-  shop: '#2E8B57',
-  park: '#228B22',
-  culture: '#4169E1',
-  other: '#708090',
-};
+import { CATEGORY_MAP } from '../constants';
 
 interface Props {
   places: Place[];
@@ -144,7 +134,7 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
       pin.style.width = '14px';
       pin.style.height = '14px';
       pin.style.borderRadius = '50%';
-      pin.style.background = CATEGORY_COLORS[place.category] ?? CATEGORY_COLORS['other'] ?? '#708090';
+      pin.style.background = (CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!).color;
       pin.style.border = '2px solid #fff';
       pin.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
       pin.style.flexShrink = '0';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Place } from '../types';
-import { CATEGORIES } from '../constants';
+import { CATEGORIES, CATEGORY_MAP } from '../constants';
 
 interface Props {
   place: Place;
@@ -9,17 +9,6 @@ interface Props {
   onUpdate: (id: string, updates: Partial<Place>) => void;
   onDelete: (id: string) => void;
 }
-
-const CATEGORY_COLORS: Record<string, string> = {
-  coffee: '#8B4513',
-  restaurant: '#DC143C',
-  bar: '#4B0082',
-  bakery: '#D2691E',
-  shop: '#2E8B57',
-  park: '#228B22',
-  culture: '#4169E1',
-  other: '#708090',
-};
 
 export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false);
@@ -37,7 +26,7 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
     notes: place.notes,
   });
 
-  const color = CATEGORY_COLORS[place.category] ?? CATEGORY_COLORS.other;
+  const cat = CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!;
   const mapsUrl =
     place.google_maps_url ||
     (place.lat && place.lng
@@ -64,19 +53,21 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: 6,
-    borderRadius: 6,
-    border: '1px solid #ccc',
+    padding: 8,
+    borderRadius: 8,
+    border: '1px solid #ddd',
     fontSize: 14,
     boxSizing: 'border-box',
   };
 
   const labelStyle: React.CSSProperties = {
     display: 'block',
-    marginBottom: 2,
-    fontSize: 12,
-    fontWeight: 500,
-    color: '#888',
+    marginBottom: 4,
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: '#999',
   };
 
   return (
@@ -92,7 +83,7 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
         boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
         padding: 20,
         zIndex: 1000,
-        maxHeight: '70vh',
+        maxHeight: '75vh',
         overflowY: 'auto',
       }}
     >
@@ -103,32 +94,53 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
             <input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           ) : (
             <>
-              <h2 style={{ margin: 0, fontSize: 20 }}>{place.name}</h2>
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '2px 10px',
-                  borderRadius: 12,
-                  background: color,
-                  color: '#fff',
-                  fontSize: 12,
-                  marginTop: 4,
-                }}
-              >
-                {place.category}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  fontSize: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: `${cat.color}15`,
+                  border: `1px solid ${cat.color}30`,
+                }}>
+                  {cat.emoji}
+                </div>
+                <span style={{
+                  fontSize: 11,
+                  padding: '3px 10px',
+                  borderRadius: 8,
+                  background: `${cat.color}15`,
+                  color: cat.color,
+                  fontWeight: 600,
+                  letterSpacing: 0.5,
+                  textTransform: 'uppercase',
+                }}>
+                  {cat.label}
+                </span>
+              </div>
+              <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700 }}>{place.name}</h2>
             </>
           )}
         </div>
         <button
           onClick={onClose}
           style={{
-            background: 'none',
+            background: '#f5f5f5',
             border: 'none',
-            fontSize: 24,
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            fontSize: 18,
             cursor: 'pointer',
-            color: '#999',
+            color: '#666',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             lineHeight: 1,
+            flexShrink: 0,
           }}
         >
           ×
@@ -141,8 +153,8 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
           <div>
             <label style={labelStyle}>Category</label>
             <select style={inputStyle} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+              {CATEGORIES.map((c) => (
+                <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
               ))}
             </select>
           </div>
@@ -186,14 +198,9 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
             <button
               onClick={handleSave}
               style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 8,
-                border: 'none',
-                background: '#111',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
+                flex: 1, padding: 10, borderRadius: 8,
+                border: 'none', background: '#111', color: '#fff',
+                cursor: 'pointer', fontSize: 14, fontWeight: 600,
               }}
             >
               Save
@@ -201,13 +208,9 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
             <button
               onClick={() => setEditing(false)}
               style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid #ccc',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
+                flex: 1, padding: 10, borderRadius: 8,
+                border: '1px solid #ddd', background: '#fff',
+                cursor: 'pointer', fontSize: 14,
               }}
             >
               Cancel
@@ -218,28 +221,40 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
         /* View mode */
         <>
           {place.address && (
-            <p style={{ margin: '8px 0', fontSize: 14, color: '#555' }}>{place.address}</p>
+            <p style={{ margin: '0 0 4px', fontSize: 13, color: '#666' }}>{place.address}</p>
           )}
 
-          {place.city && (
-            <p style={{ margin: '4px 0', fontSize: 13, color: '#888' }}>{place.city}</p>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+            {place.cuisine && <Field label="Cuisine" value={place.cuisine} />}
+            {place.source && <Field label="Source" value={place.source} />}
+            {place.list && <Field label="List" value={place.list} />}
+            {place.notes && <Field label="Notes" value={place.notes} />}
+            {place.date_added && <Field label="Added" value={place.date_added} />}
+          </div>
 
-          {place.cuisine && (
-            <p style={{ margin: '4px 0', fontSize: 13, color: '#888' }}>Cuisine: {place.cuisine}</p>
-          )}
-
-          {place.source && (
-            <p style={{ margin: '4px 0', fontSize: 13, color: '#888' }}>Source: {place.source}</p>
-          )}
-
-          {place.list && (
-            <p style={{ margin: '4px 0', fontSize: 13, color: '#888' }}>List: {place.list}</p>
-          )}
-
-          {place.notes && (
-            <p style={{ margin: '8px 0', fontSize: 14, color: '#333', fontStyle: 'italic' }}>{place.notes}</p>
-          )}
+          {/* Visited toggle */}
+          <div style={{ marginTop: 16 }}>
+            <button
+              onClick={() => onToggleVisited(place)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: `1.5px solid ${place.visited ? '#22C55E40' : '#ddd'}`,
+                background: place.visited ? 'rgba(34,197,94,0.08)' : '#fafafa',
+                color: place.visited ? '#22C55E' : '#666',
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: 'pointer',
+                width: '100%',
+                justifyContent: 'center',
+              }}
+            >
+              {place.visited ? '✓ Visited' : 'Mark as visited'}
+            </button>
+          </div>
 
           {place.screenshot_url && (
             <>
@@ -248,129 +263,77 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
                 alt="Screenshot"
                 loading="lazy"
                 onClick={() => setScreenshotEnlarged(true)}
-                style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, marginTop: 8, cursor: 'pointer' }}
+                style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, marginTop: 12, cursor: 'pointer' }}
               />
               {screenshotEnlarged && (
                 <div
                   onClick={() => setScreenshotEnlarged(false)}
                   style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0,0,0,0.9)',
-                    zIndex: 2000,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.9)', zIndex: 2000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                   }}
                 >
-                  <img
-                    src={place.screenshot_url}
-                    alt="Screenshot"
-                    style={{ maxWidth: '95vw', maxHeight: '95vh', objectFit: 'contain' }}
-                  />
+                  <img src={place.screenshot_url} alt="Screenshot" style={{ maxWidth: '95vw', maxHeight: '95vh', objectFit: 'contain' }} />
                 </div>
               )}
             </>
           )}
 
+          {/* Action buttons */}
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button
-              onClick={() => onToggleVisited(place)}
-              style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid #ccc',
-                background: place.visited ? '#e8f5e9' : '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
-              }}
-            >
-              {place.visited ? 'Visited ✓' : 'Mark visited'}
-            </button>
-
             {mapsUrl && (
               <a
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  flex: 1,
-                  padding: 10,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: '#111',
-                  color: '#fff',
-                  textAlign: 'center',
-                  textDecoration: 'none',
-                  fontSize: 14,
+                  flex: 1, padding: 10, borderRadius: 8,
+                  border: 'none', background: '#111', color: '#fff',
+                  textAlign: 'center', textDecoration: 'none', fontSize: 13, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
                 Open in Maps
               </a>
             )}
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button
               onClick={() => setEditing(true)}
               style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid #ccc',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
+                flex: 1, padding: 10, borderRadius: 8,
+                border: '1px solid #ddd', background: '#fff',
+                cursor: 'pointer', fontSize: 13,
               }}
             >
               Edit
             </button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid #fcc',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
-                color: '#c00',
-              }}
-            >
-              Delete
-            </button>
           </div>
 
-          {/* Delete confirmation */}
+          <button
+            onClick={() => setConfirmDelete(true)}
+            style={{
+              marginTop: 8, padding: 10, borderRadius: 8,
+              border: '1px solid rgba(232,93,74,0.2)', background: 'rgba(232,93,74,0.05)',
+              cursor: 'pointer', fontSize: 12, color: '#E85D4A', fontWeight: 600,
+              width: '100%',
+            }}
+          >
+            Remove
+          </button>
+
           {confirmDelete && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: 12,
-                background: '#fff5f5',
-                borderRadius: 8,
-                border: '1px solid #fcc',
-              }}
-            >
-              <p style={{ margin: '0 0 8px', fontSize: 14 }}>Delete "{place.name}"?</p>
+            <div style={{ marginTop: 12, padding: 12, background: '#fff5f5', borderRadius: 8, border: '1px solid #fcc' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 14 }}>Delete &ldquo;{place.name}&rdquo;?</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   onClick={handleDelete}
                   style={{
-                    flex: 1,
-                    padding: 8,
-                    borderRadius: 6,
-                    border: 'none',
-                    background: '#c00',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    fontSize: 13,
+                    flex: 1, padding: 8, borderRadius: 6,
+                    border: 'none', background: '#c00', color: '#fff',
+                    cursor: 'pointer', fontSize: 13,
                   }}
                 >
                   Yes, delete
@@ -378,13 +341,9 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
                 <button
                   onClick={() => setConfirmDelete(false)}
                   style={{
-                    flex: 1,
-                    padding: 8,
-                    borderRadius: 6,
-                    border: '1px solid #ccc',
-                    background: '#fff',
-                    cursor: 'pointer',
-                    fontSize: 13,
+                    flex: 1, padding: 8, borderRadius: 6,
+                    border: '1px solid #ccc', background: '#fff',
+                    cursor: 'pointer', fontSize: 13,
                   }}
                 >
                   Cancel
@@ -394,6 +353,17 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: '#999', marginBottom: 3, fontWeight: 600 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 14, color: '#333' }}>{value}</div>
     </div>
   );
 }

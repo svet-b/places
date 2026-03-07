@@ -5,40 +5,34 @@ interface Props {
   onToggle: (category: string) => void;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  coffee: '#8B4513',
-  restaurant: '#DC143C',
-  bar: '#4B0082',
-  bakery: '#D2691E',
-  shop: '#2E8B57',
-  park: '#228B22',
-  culture: '#4169E1',
-  other: '#708090',
-};
-
 export function CategoryFilter({ activeCategories, onToggle }: Props) {
   return (
     <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 0', flexShrink: 0 }}>
       {CATEGORIES.map((cat) => {
-        const active = activeCategories.has(cat);
+        const active = activeCategories.has(cat.id);
         return (
           <button
-            key={cat}
-            onClick={() => onToggle(cat)}
+            key={cat.id}
+            onClick={() => onToggle(cat.id)}
             style={{
-              padding: '4px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 12px',
               borderRadius: 20,
-              border: `1.5px solid ${CATEGORY_COLORS[cat]}`,
-              background: active ? CATEGORY_COLORS[cat] : 'transparent',
-              color: active ? '#fff' : CATEGORY_COLORS[cat],
+              border: `1.5px solid ${active ? cat.color : '#ddd'}`,
+              background: active ? `${cat.color}18` : '#fff',
+              color: active ? cat.color : '#888',
               fontSize: 13,
               fontWeight: 500,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               transition: 'all 0.15s',
+              flexShrink: 0,
             }}
           >
-            {cat}
+            <span style={{ fontSize: 14 }}>{cat.emoji}</span>
+            {cat.label}
           </button>
         );
       })}
