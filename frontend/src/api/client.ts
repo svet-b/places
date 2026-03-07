@@ -1,17 +1,55 @@
 import { Place, NewPlace } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL as string;
-const API_KEY = import.meta.env.VITE_API_KEY as string;
+const TOKEN_KEY = 'places-auth-token';
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export async function login(password: string): Promise<void> {
+  const resp = await fetch(`${API_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+
+  if (!resp.ok) {
+    throw new Error('Invalid password');
+  }
+
+  const data = (await resp.json()) as { token: string };
+  setToken(data.token);
+}
+
+export async function getConfig(): Promise<{ googleMapsKey: string }> {
+  return request<{ googleMapsKey: string }>('/config');
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const resp = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       ...options?.headers,
     },
   });
+
+  if (resp.status === 401) {
+    clearToken();
+    window.location.reload();
+    throw new Error('Session expired');
+  }
 
   if (!resp.ok) {
     const text = await resp.text();
@@ -40,12 +78,18 @@ export function updatePlace(id: string, updates: Partial<Place>): Promise<Place>
 }
 
 export function deletePlace(id: string): Promise<void> {
+  const token = getToken();
   return fetch(`${API_URL}/places/${id}`, {
     method: 'DELETE',
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${token}`,
     },
   }).then((resp) => {
+    if (resp.status === 401) {
+      clearToken();
+      window.location.reload();
+      throw new Error('Session expired');
+    }
     if (!resp.ok) throw new Error(`API error ${resp.status}`);
   });
 }

@@ -11,6 +11,82 @@ import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
 
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await api.login(password);
+      onLogin();
+    } catch {
+      setError('Invalid password');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{
+      fontFamily: 'system-ui, sans-serif',
+      height: '100dvh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#f5f5f5',
+    }}>
+      <form onSubmit={handleSubmit} style={{
+        background: '#fff',
+        padding: 32,
+        borderRadius: 16,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+        width: 300,
+        textAlign: 'center',
+      }}>
+        <h1 style={{ fontSize: 24, margin: '0 0 24px' }}>Places</h1>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          autoFocus
+          style={{
+            width: '100%',
+            padding: 12,
+            borderRadius: 8,
+            border: '1px solid #ddd',
+            fontSize: 16,
+            boxSizing: 'border-box',
+            marginBottom: 12,
+          }}
+        />
+        {error && <p style={{ color: '#c00', fontSize: 13, margin: '0 0 12px' }}>{error}</p>}
+        <button
+          type="submit"
+          disabled={loading || !password}
+          style={{
+            width: '100%',
+            padding: 12,
+            borderRadius: 8,
+            border: 'none',
+            background: '#111',
+            color: '#fff',
+            fontSize: 16,
+            cursor: 'pointer',
+            opacity: loading || !password ? 0.5 : 1,
+          }}
+        >
+          {loading ? 'Signing in...' : 'Sign in'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function generateId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let id = '';
@@ -36,6 +112,7 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 type SortMode = 'date' | 'name' | 'distance';
 
 export function App() {
+  const [authed, setAuthed] = useState(() => !!api.getToken());
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -64,18 +141,23 @@ export function App() {
     localStorage.setItem('places-sort', sortMode);
   }, [sortMode]);
 
+  // Fetch config (Google Maps key) and load maps after auth
   useEffect(() => {
+    if (!authed) return;
+    api.getConfig()
+      .then(({ googleMapsKey }) => loadGoogleMaps(googleMapsKey))
+      .then(() => setMapsLoaded(true))
+      .catch(() => {});
+  }, [authed]);
+
+  // Fetch places after auth
+  useEffect(() => {
+    if (!authed) return;
     api.getPlaces()
       .then(setPlaces)
       .catch((e) => setToast(e.message))
       .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadGoogleMaps()
-      .then(() => setMapsLoaded(true))
-      .catch(() => {});
-  }, []);
+  }, [authed]);
 
   const refresh = useCallback(async () => {
     try {
@@ -244,6 +326,10 @@ export function App() {
   const handleSelectPlace = useCallback((place: Place) => {
     setSelectedPlace(place);
   }, []);
+
+  if (!authed) {
+    return <LoginScreen onLogin={() => setAuthed(true)} />;
+  }
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', height: '100dvh', display: 'flex', flexDirection: 'column' }}>

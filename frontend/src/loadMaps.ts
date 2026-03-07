@@ -1,11 +1,10 @@
 let promise: Promise<void> | null = null;
 
-export function loadGoogleMaps(): Promise<void> {
+export function loadGoogleMaps(key: string): Promise<void> {
   if (promise) return promise;
 
-  const key = import.meta.env.VITE_GOOGLE_MAPS_KEY as string;
   if (!key) {
-    return Promise.reject(new Error('VITE_GOOGLE_MAPS_KEY not set'));
+    return Promise.reject(new Error('Google Maps key not provided'));
   }
 
   promise = new Promise<void>((resolve, reject) => {

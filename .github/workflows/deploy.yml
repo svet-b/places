@@ -47,8 +47,6 @@ jobs:
       - run: npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
-          VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
 
       - run: npx wrangler pages deploy dist --project-name=places --commit-dirty=true
         env:
