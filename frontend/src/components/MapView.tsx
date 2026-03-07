@@ -106,10 +106,12 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     );
 
     for (const place of filtered) {
+      // Container is sized only to the pin; label is positioned absolutely below
+      // so showing/hiding the label doesn't shift the pin's anchor point
       const container = document.createElement('div');
-      container.style.display = 'flex';
-      container.style.flexDirection = 'column';
-      container.style.alignItems = 'center';
+      container.style.position = 'relative';
+      container.style.width = '14px';
+      container.style.height = '14px';
       container.style.cursor = 'pointer';
 
       const pin = document.createElement('div');
@@ -119,17 +121,19 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
       pin.style.background = (CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!).color;
       pin.style.border = '2px solid #fff';
       pin.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
-      pin.style.flexShrink = '0';
 
       const label = document.createElement('div');
       label.textContent = place.name;
+      label.style.position = 'absolute';
+      label.style.top = '16px';
+      label.style.left = '50%';
+      label.style.transform = 'translateX(-50%)';
       label.style.fontSize = '11px';
       label.style.fontWeight = '600';
       label.style.color = '#333';
       label.style.background = 'rgba(255,255,255,0.85)';
       label.style.padding = '1px 4px';
       label.style.borderRadius = '3px';
-      label.style.marginTop = '2px';
       label.style.whiteSpace = 'nowrap';
       label.style.maxWidth = '120px';
       label.style.overflow = 'hidden';

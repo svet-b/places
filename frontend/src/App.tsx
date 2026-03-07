@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Place, NewPlace } from './types';
 import * as api from './api/client';
-import { CATEGORY_IDS } from './constants';
+
 import { useGeolocation } from './hooks/useGeolocation';
 import { loadGoogleMaps } from './loadMaps';
 import { ListView } from './components/ListView';
@@ -92,7 +92,7 @@ export function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [view, setView] = useState<'map' | 'list'>('map');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(CATEGORY_IDS));
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set());
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(
@@ -317,9 +317,9 @@ export function App() {
       </header>
 
       {/* City filter + Category filter */}
-      <div className="px-4 shrink-0">
+      <div className="shrink-0">
         {cities.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto py-1.5">
+          <div className="flex gap-1.5 overflow-x-auto py-1.5 px-4">
             <button
               onClick={() => setActiveCity(null)}
               className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
