@@ -133,6 +133,13 @@ export function resolveUrl(url: string): Promise<ResolvedPlace> {
   });
 }
 
+export function getOpenStatus(placeIds: string[]): Promise<Record<string, boolean | null>> {
+  return request<Record<string, boolean | null>>('/places/open-status', {
+    method: 'POST',
+    body: JSON.stringify({ placeIds }),
+  });
+}
+
 export function uploadImage(imageBase64: string, filename: string): Promise<{ url: string }> {
   return request<{ url: string }>('/upload-image', {
     method: 'POST',

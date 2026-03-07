@@ -57,6 +57,63 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
   };
 }
 
+// In-memory cache: google_place_id -> { openNow: boolean | null, fetchedAt: number }
+const openStatusCache = new Map<string, { openNow: boolean | null; fetchedAt: number }>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export async function getOpenStatus(
+  env: Env,
+  placeIds: string[],
+): Promise<Record<string, boolean | null>> {
+  const now = Date.now();
+  const result: Record<string, boolean | null> = {};
+  const toFetch: string[] = [];
+
+  for (const id of placeIds) {
+    const cached = openStatusCache.get(id);
+    if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+      result[id] = cached.openNow;
+    } else {
+      toFetch.push(id);
+    }
+  }
+
+  // Fetch in parallel, max 10 concurrent to be safe
+  const batchSize = 10;
+  for (let i = 0; i < toFetch.length; i += batchSize) {
+    const batch = toFetch.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (placeId) => {
+        try {
+          const resp = await fetch(
+            `https://places.googleapis.com/v1/places/${placeId}`,
+            {
+              headers: {
+                'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
+                'X-Goog-FieldMask': 'currentOpeningHours.openNow',
+              },
+            },
+          );
+          if (!resp.ok) return { placeId, openNow: null as boolean | null };
+          const data = (await resp.json()) as {
+            currentOpeningHours?: { openNow?: boolean };
+          };
+          const openNow = data.currentOpeningHours?.openNow ?? null;
+          return { placeId, openNow };
+        } catch {
+          return { placeId, openNow: null as boolean | null };
+        }
+      }),
+    );
+    for (const { placeId, openNow } of results) {
+      result[placeId] = openNow;
+      openStatusCache.set(placeId, { openNow, fetchedAt: now });
+    }
+  }
+
+  return result;
+}
+
 export async function resolveMapsUrl(env: Env, url: string): Promise<ResolvedPlace | null> {
   // Follow redirects to get the final URL (handles maps.app.goo.gl short links)
   let finalUrl = url;

@@ -101,6 +101,9 @@ export function App() {
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [openNowFilter, setOpenNowFilter] = useState(false);
+  const [openStatus, setOpenStatus] = useState<Record<string, boolean | null>>({});
+  const [openStatusLoading, setOpenStatusLoading] = useState(false);
 
   const geo = useGeolocation();
 
@@ -143,7 +146,8 @@ export function App() {
     [places],
   );
 
-  const filteredPlaces = useMemo(() => {
+  // Places before open-now filtering (used to determine which IDs to query)
+  const preFilteredPlaces = useMemo(() => {
     let result = places.filter((p) => activeCategories.has(p.category));
 
     if (activeCity) {
@@ -162,6 +166,40 @@ export function App() {
       );
     }
 
+    return result;
+  }, [places, activeCategories, activeCity, debouncedSearch]);
+
+  // Fetch open status when filter is activated
+  useEffect(() => {
+    if (!openNowFilter) return;
+    const ids = preFilteredPlaces
+      .map((p) => p.google_place_id)
+      .filter(Boolean);
+    if (ids.length === 0) return;
+
+    // Only fetch IDs we don't already have cached
+    const uncached = ids.filter((id) => !(id in openStatus));
+    if (uncached.length === 0) return;
+
+    setOpenStatusLoading(true);
+    api.getOpenStatus(uncached)
+      .then((status) => {
+        setOpenStatus((prev) => ({ ...prev, ...status }));
+      })
+      .catch(() => setToast('Failed to check open status'))
+      .finally(() => setOpenStatusLoading(false));
+  }, [openNowFilter, preFilteredPlaces]);
+
+  const filteredPlaces = useMemo(() => {
+    let result = preFilteredPlaces;
+
+    if (openNowFilter) {
+      result = result.filter((p) => {
+        if (!p.google_place_id) return false;
+        return openStatus[p.google_place_id] === true;
+      });
+    }
+
     if (sortMode === 'name') {
       result = [...result].sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortMode === 'distance' && geo.location) {
@@ -175,7 +213,7 @@ export function App() {
     }
 
     return result;
-  }, [places, activeCategories, activeCity, debouncedSearch, sortMode, geo.location]);
+  }, [preFilteredPlaces, openNowFilter, openStatus, sortMode, geo.location]);
 
   const handleAdd = useCallback(async (newPlace: NewPlace, imageBase64?: string) => {
     const id = generateId();
@@ -345,7 +383,16 @@ export function App() {
             ))}
           </div>
         )}
-        <CategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
+        <CategoryFilter
+          activeCategories={activeCategories}
+          onToggle={handleToggleCategory}
+          openNowFilter={openNowFilter}
+          openNowLoading={openStatusLoading}
+          onToggleOpenNow={() => {
+            setOpenNowFilter((prev) => !prev);
+            if (!openNowFilter) setOpenStatus({});
+          }}
+        />
       </div>
 
       {/* Add place panel */}
@@ -396,7 +443,7 @@ export function App() {
           />
         ) : mapsLoaded ? (
           <MapView
-            places={places}
+            places={openNowFilter ? places.filter((p) => p.google_place_id && openStatus[p.google_place_id] === true) : places}
             activeCategories={activeCategories}
             userLocation={geo.location}
             onSelectPlace={handleSelectPlace}
