@@ -11,6 +11,10 @@ import { CategoryFilter } from './components/CategoryFilter';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { RefreshCw, X, Loader2 } from 'lucide-react';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('');
@@ -32,57 +36,28 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <div style={{
-      fontFamily: 'system-ui, sans-serif',
-      height: '100dvh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#f5f5f5',
-    }}>
-      <form onSubmit={handleSubmit} style={{
-        background: '#fff',
-        padding: 32,
-        borderRadius: 16,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-        width: 300,
-        textAlign: 'center',
-      }}>
-        <h1 style={{ fontSize: 24, margin: '0 0 24px' }}>Places</h1>
-        <input
+    <div className="h-dvh flex items-center justify-center bg-muted">
+      <form onSubmit={handleSubmit} className="bg-background p-8 rounded-2xl shadow-lg w-[300px] text-center">
+        <h1 className="text-2xl font-semibold mb-6">Places</h1>
+        <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
           autoFocus
-          style={{
-            width: '100%',
-            padding: 12,
-            borderRadius: 8,
-            border: '1px solid #ddd',
-            fontSize: 16,
-            boxSizing: 'border-box',
-            marginBottom: 12,
-          }}
+          className="mb-3"
         />
-        {error && <p style={{ color: '#c00', fontSize: 13, margin: '0 0 12px' }}>{error}</p>}
-        <button
-          type="submit"
-          disabled={loading || !password}
-          style={{
-            width: '100%',
-            padding: 12,
-            borderRadius: 8,
-            border: 'none',
-            background: '#111',
-            color: '#fff',
-            fontSize: 16,
-            cursor: 'pointer',
-            opacity: loading || !password ? 0.5 : 1,
-          }}
-        >
-          {loading ? 'Signing in...' : 'Sign in'}
-        </button>
+        {error && <p className="text-destructive text-xs mb-3">{error}</p>}
+        <Button type="submit" disabled={loading || !password} className="w-full">
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            'Sign in'
+          )}
+        </Button>
       </form>
     </div>
   );
@@ -93,9 +68,7 @@ function generateId(): string {
   let id = '';
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
-  for (const b of bytes) {
-    id += chars[b % chars.length];
-  }
+  for (const b of bytes) id += chars[b % chars.length];
   return id;
 }
 
@@ -131,18 +104,15 @@ export function App() {
 
   const geo = useGeolocation();
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 200);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Persist sort preference
   useEffect(() => {
     localStorage.setItem('places-sort', sortMode);
   }, [sortMode]);
 
-  // Fetch config (Google Maps key) and load maps after auth
   useEffect(() => {
     if (!authed) return;
     api.getConfig()
@@ -151,7 +121,6 @@ export function App() {
       .catch(() => {});
   }, [authed]);
 
-  // Fetch places after auth
   useEffect(() => {
     if (!authed) return;
     api.getPlaces()
@@ -169,13 +138,11 @@ export function App() {
     }
   }, []);
 
-  // Derive city list from data
   const cities = useMemo(
     () => [...new Set(places.map((p) => p.city).filter(Boolean))].sort(),
     [places],
   );
 
-  // Filter + sort
   const filteredPlaces = useMemo(() => {
     let result = places.filter((p) => activeCategories.has(p.category));
 
@@ -243,7 +210,6 @@ export function App() {
       return;
     }
 
-    // Upload screenshot in background if provided
     if (imageBase64) {
       try {
         const { url } = await api.uploadImage(imageBase64, `${id}.jpg`);
@@ -333,70 +299,34 @@ export function App() {
   }
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div className="h-dvh flex flex-col">
       {/* Header */}
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px 16px',
-          paddingTop: 'max(12px, env(safe-area-inset-top))',
-          borderBottom: '1px solid #eee',
-          flexShrink: 0,
-          gap: 8,
-        }}
-      >
-        <h1 style={{ fontSize: 20, margin: 0, flexShrink: 0 }}>Places</h1>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            onClick={refresh}
-            style={{
-              padding: '6px 10px',
-              borderRadius: 8,
-              border: '1px solid #ddd',
-              background: '#fff',
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
-          >
-            Refresh
-          </button>
+      <header className="flex justify-between items-center px-4 py-3 pt-[max(12px,env(safe-area-inset-top))] border-b border-border shrink-0 gap-2">
+        <h1 className="text-lg font-semibold shrink-0">Places</h1>
+        <div className="flex gap-1.5">
+          <Button variant="outline" size="icon" onClick={refresh}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           {showAdd && (
-            <button
-              onClick={() => setShowAdd(false)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 8,
-                border: 'none',
-                background: '#666',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
-            >
+            <Button variant="secondary" size="sm" onClick={() => setShowAdd(false)}>
+              <X className="h-4 w-4 mr-1" />
               Cancel
-            </button>
+            </Button>
           )}
         </div>
       </header>
 
       {/* City filter + Category filter */}
-      <div style={{ padding: '0 16px', flexShrink: 0 }}>
+      <div className="px-4 shrink-0">
         {cities.length > 1 && (
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '6px 0' }}>
+          <div className="flex gap-1.5 overflow-x-auto py-1.5">
             <button
               onClick={() => setActiveCity(null)}
-              style={{
-                padding: '3px 10px',
-                borderRadius: 16,
-                border: '1px solid #ddd',
-                background: activeCity === null ? '#111' : '#fff',
-                color: activeCity === null ? '#fff' : '#333',
-                fontSize: 12,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
+              className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
+                activeCity === null
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+              }`}
             >
               All cities
             </button>
@@ -404,16 +334,11 @@ export function App() {
               <button
                 key={city}
                 onClick={() => setActiveCity(activeCity === city ? null : city)}
-                style={{
-                  padding: '3px 10px',
-                  borderRadius: 16,
-                  border: '1px solid #ddd',
-                  background: activeCity === city ? '#111' : '#fff',
-                  color: activeCity === city ? '#fff' : '#333',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
+                className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
+                  activeCity === city
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+                }`}
               >
                 {city}
               </button>
@@ -425,7 +350,7 @@ export function App() {
 
       {/* Add place panel */}
       {showAdd && (
-        <div style={{ padding: '0 16px', flexShrink: 0 }}>
+        <div className="px-4 shrink-0">
           <AddPlacePanel
             onSubmit={handleAdd}
             onCancel={() => setShowAdd(false)}
@@ -436,41 +361,32 @@ export function App() {
 
       {/* Search + sort (list view only) */}
       {view === 'list' && !showAdd && (
-        <div style={{ padding: '4px 16px 0', display: 'flex', gap: 8, flexShrink: 0 }}>
-          <input
+        <div className="px-4 pt-1 flex gap-2 shrink-0">
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search..."
-            style={{
-              flex: 1,
-              padding: '6px 10px',
-              borderRadius: 8,
-              border: '1px solid #ddd',
-              fontSize: 14,
-            }}
+            className="flex-1"
           />
-          <select
+          <Select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as SortMode)}
-            style={{
-              padding: '6px 8px',
-              borderRadius: 8,
-              border: '1px solid #ddd',
-              fontSize: 13,
-              background: '#fff',
-            }}
+            className="w-auto"
           >
             <option value="date">Newest</option>
             <option value="name">A-Z</option>
             {geo.location && <option value="distance">Nearest</option>}
-          </select>
+          </Select>
         </div>
       )}
 
       {/* Main content */}
-      <div style={{ flex: 1, overflow: 'auto', paddingBottom: 56 }}>
+      <div className="flex-1 overflow-auto pb-14">
         {loading ? (
-          <p style={{ padding: 16, color: '#888' }}>Loading places...</p>
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading places...
+          </div>
         ) : view === 'list' ? (
           <ListView
             places={filteredPlaces}
@@ -486,11 +402,13 @@ export function App() {
             onSelectPlace={handleSelectPlace}
           />
         ) : (
-          <p style={{ padding: 16, color: '#888' }}>Loading map...</p>
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading map...
+          </div>
         )}
       </div>
 
-      {/* Place detail bottom sheet */}
       {selectedPlace && (
         <PlaceDetail
           place={selectedPlace}
@@ -501,10 +419,8 @@ export function App() {
         />
       )}
 
-      {/* Toast */}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
-      {/* Bottom navigation */}
       <BottomNav view={view} onChangeView={setView} onAdd={() => setShowAdd(true)} />
     </div>
   );

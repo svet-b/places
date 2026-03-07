@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 interface Props {
   message: string;
@@ -14,22 +15,10 @@ export function Toast({ message, onDismiss }: Props) {
   return (
     <div
       onClick={onDismiss}
-      style={{
-        position: 'fixed',
-        bottom: 70,
-        left: 16,
-        right: 16,
-        background: '#333',
-        color: '#fff',
-        padding: '12px 16px',
-        borderRadius: 10,
-        fontSize: 14,
-        zIndex: 2000,
-        cursor: 'pointer',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-      }}
+      className="fixed bottom-18 left-4 right-4 bg-foreground text-background px-4 py-3 rounded-xl text-sm z-[2000] cursor-pointer shadow-lg flex items-center justify-between gap-2"
     >
       {message}
+      <X className="h-4 w-4 shrink-0 opacity-70" />
     </div>
   );
 }

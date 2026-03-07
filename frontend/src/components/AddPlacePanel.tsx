@@ -2,6 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { NewPlace } from '../types';
 import { CATEGORIES } from '../constants';
 import * as api from '../api/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Upload, Search, Link, Loader2 } from 'lucide-react';
 
 interface Props {
   onSubmit: (place: NewPlace, imageBase64?: string) => void;
@@ -47,32 +53,24 @@ interface PlaceIdentity {
 }
 
 export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
-  // Place identity (populated by screenshot/URL/search)
   const [identity, setIdentity] = useState<PlaceIdentity | null>(null);
-
-  // Screenshot state
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-
-  // URL state
   const [mapsUrl, setMapsUrl] = useState('');
   const [resolvingUrl, setResolvingUrl] = useState(false);
-
-  // Metadata (user-editable)
   const [priority, setPriority] = useState(2);
   const [category, setCategory] = useState('restaurant');
   const [cuisine, setCuisine] = useState('');
   const [source, setSource] = useState('');
   const [list, setList] = useState('');
   const [notes, setNotes] = useState('');
-
   const [error, setError] = useState<string | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
-  // Set up Google Places Autocomplete on the search input
   useEffect(() => {
     if (!mapsLoaded || !searchInputRef.current || autocompleteRef.current) return;
     if (!google.maps.places?.Autocomplete) return;
@@ -105,7 +103,6 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
     autocompleteRef.current = ac;
   }, [mapsLoaded]);
 
-  // Screenshot handling
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -144,7 +141,6 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
     }
   }
 
-  // URL handling
   async function handleResolveUrl() {
     if (!mapsUrl.trim()) return;
     setResolvingUrl(true);
@@ -189,63 +185,29 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
     );
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: 8,
-    borderRadius: 6,
-    border: '1px solid #ccc',
-    fontSize: 14,
-    boxSizing: 'border-box',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: 'block',
-    marginBottom: 4,
-    fontSize: 13,
-    fontWeight: 500,
-    color: '#444',
-  };
-
-  const sectionStyle: React.CSSProperties = {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottom: '1px solid #eee',
-  };
-
   const identified = identity !== null;
 
   return (
-    <div style={{ padding: 16, background: '#f9f9f9', borderRadius: 12, marginBottom: 16, maxHeight: '70vh', overflowY: 'auto' }}>
+    <div className="p-4 bg-muted rounded-xl mb-4 max-h-[70vh] overflow-y-auto">
       {!identified ? (
         <>
-          {/* Step 1: Identify the place */}
-          <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#333' }}>
-            Find the place
-          </p>
+          <p className="text-sm font-semibold mb-3">Find the place</p>
 
           {/* Screenshot upload */}
-          <div style={sectionStyle}>
+          <div className="mb-3 pb-3 border-b border-border">
             <input
               ref={fileRef}
               type="file"
               accept="image/*"
               onChange={handleFileSelect}
-              style={{ display: 'none' }}
+              className="hidden"
             />
             {!imagePreview ? (
               <button
                 onClick={() => fileRef.current?.click()}
-                style={{
-                  width: '100%',
-                  padding: 16,
-                  borderRadius: 8,
-                  border: '2px dashed #ccc',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  color: '#666',
-                }}
+                className="w-full py-4 rounded-lg border-2 border-dashed border-border bg-background cursor-pointer text-sm text-muted-foreground hover:border-foreground/30 transition-colors flex items-center justify-center gap-2"
               >
+                <Upload className="h-4 w-4" />
                 Upload screenshot
               </button>
             ) : (
@@ -253,209 +215,129 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
                 <img
                   src={imagePreview}
                   alt="Screenshot"
-                  style={{
-                    width: '100%',
-                    maxHeight: 150,
-                    objectFit: 'contain',
-                    borderRadius: 8,
-                    opacity: analyzing ? 0.5 : 1,
-                  }}
+                  className="w-full max-h-[150px] object-contain rounded-lg"
+                  style={{ opacity: analyzing ? 0.5 : 1 }}
                 />
                 {analyzing ? (
-                  <p style={{ textAlign: 'center', color: '#666', fontSize: 13, margin: '8px 0 0' }}>
+                  <p className="text-center text-muted-foreground text-xs mt-2 flex items-center justify-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" />
                     Analyzing...
                   </p>
                 ) : (
-                  <button
-                    onClick={handleAnalyze}
-                    style={{
-                      width: '100%',
-                      padding: 8,
-                      borderRadius: 6,
-                      border: 'none',
-                      background: '#111',
-                      color: '#fff',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      marginTop: 8,
-                    }}
-                  >
+                  <Button onClick={handleAnalyze} className="w-full mt-2" size="sm">
                     Analyze Screenshot
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
           </div>
 
           {/* Google Maps URL */}
-          <div style={sectionStyle}>
-            <label style={labelStyle}>Google Maps URL</label>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                style={{ ...inputStyle, flex: 1 }}
+          <div className="mb-3 pb-3 border-b border-border">
+            <Label className="mb-1.5 flex items-center gap-1.5">
+              <Link className="h-3 w-3" />
+              Google Maps URL
+            </Label>
+            <div className="flex gap-1.5">
+              <Input
+                className="flex-1"
                 value={mapsUrl}
                 onChange={(e) => setMapsUrl(e.target.value)}
                 placeholder="Paste a Google Maps link"
               />
-              <button
+              <Button
                 onClick={handleResolveUrl}
                 disabled={!mapsUrl.trim() || resolvingUrl}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: '#111',
-                  color: '#fff',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  opacity: mapsUrl.trim() && !resolvingUrl ? 1 : 0.5,
-                  whiteSpace: 'nowrap',
-                }}
+                size="sm"
               >
-                {resolvingUrl ? '...' : 'Go'}
-              </button>
+                {resolvingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Go'}
+              </Button>
             </div>
           </div>
 
-          {/* Google Maps search */}
-          <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Search by name</label>
-            <input
-              ref={searchInputRef}
-              style={inputStyle}
-              placeholder="Search for a place..."
-            />
+          {/* Search */}
+          <div className="mb-2">
+            <Label className="mb-1.5 flex items-center gap-1.5">
+              <Search className="h-3 w-3" />
+              Search by name
+            </Label>
+            <Input ref={searchInputRef} placeholder="Search for a place..." />
           </div>
 
-          {error && (
-            <p style={{ color: '#c00', fontSize: 13, margin: '8px 0' }}>{error}</p>
-          )}
+          {error && <p className="text-destructive text-xs mt-2">{error}</p>}
 
-          <button
-            onClick={onCancel}
-            style={{
-              width: '100%',
-              padding: 10,
-              borderRadius: 8,
-              border: '1px solid #ccc',
-              background: '#fff',
-              fontSize: 14,
-              cursor: 'pointer',
-              marginTop: 8,
-            }}
-          >
+          <Button variant="outline" onClick={onCancel} className="w-full mt-3">
             Cancel
-          </button>
+          </Button>
         </>
       ) : (
         <>
-          {/* Step 2: Review & add metadata */}
-          <div style={{ marginBottom: 12 }}>
-            <p style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 600 }}>{identity.name}</p>
+          {/* Step 2: Review & metadata */}
+          <div className="mb-3">
+            <p className="text-base font-semibold">{identity.name}</p>
             {identity.address && (
-              <p style={{ margin: 0, fontSize: 13, color: '#666' }}>{identity.address}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{identity.address}</p>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setIdentity(null)}
-              style={{
-                marginTop: 6,
-                padding: '2px 8px',
-                borderRadius: 4,
-                border: '1px solid #ddd',
-                background: '#fff',
-                fontSize: 12,
-                cursor: 'pointer',
-                color: '#666',
-              }}
+              className="mt-1.5 h-7 text-xs text-muted-foreground"
             >
               Change place
-            </button>
+            </Button>
           </div>
 
           {imagePreview && (
             <img
               src={imagePreview}
               alt="Screenshot"
-              style={{ width: '100%', maxHeight: 120, objectFit: 'contain', borderRadius: 8, marginBottom: 12 }}
+              className="w-full max-h-[120px] object-contain rounded-lg mb-3"
             />
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Category</label>
-                <select style={inputStyle} value={category} onChange={(e) => setCategory(e.target.value)}>
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label>Category</Label>
+                <Select className="mt-1" value={category} onChange={(e) => setCategory(e.target.value)}>
                   {CATEGORIES.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.emoji} {cat.label}</option>
+                    <option key={cat.id} value={cat.id}>{cat.label}</option>
                   ))}
-                </select>
+                </Select>
               </div>
-              <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Priority</label>
-                <select style={inputStyle} value={priority} onChange={(e) => setPriority(Number(e.target.value))}>
+              <div className="flex-1">
+                <Label>Priority</Label>
+                <Select className="mt-1" value={priority} onChange={(e) => setPriority(Number(e.target.value))}>
                   <option value={1}>1 (High)</option>
                   <option value={2}>2 (Medium)</option>
                   <option value={3}>3 (Low)</option>
-                </select>
+                </Select>
               </div>
             </div>
             <div>
-              <label style={labelStyle}>Cuisine</label>
-              <input style={inputStyle} value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="Italian, French, etc." />
+              <Label>Cuisine</Label>
+              <Input className="mt-1" value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="Italian, French, etc." />
             </div>
             <div>
-              <label style={labelStyle}>Source</label>
-              <input style={inputStyle} value={source} onChange={(e) => setSource(e.target.value)} placeholder="Instagram — @account" />
+              <Label>Source</Label>
+              <Input className="mt-1" value={source} onChange={(e) => setSource(e.target.value)} placeholder="Instagram - @account" />
             </div>
             <div>
-              <label style={labelStyle}>List</label>
-              <input style={inputStyle} value={list} onChange={(e) => setList(e.target.value)} placeholder="50 best coffee shops in Paris" />
+              <Label>List</Label>
+              <Input className="mt-1" value={list} onChange={(e) => setList(e.target.value)} placeholder="50 best coffee shops in Paris" />
             </div>
             <div>
-              <label style={labelStyle}>Notes</label>
-              <textarea
-                style={{ ...inputStyle, resize: 'vertical', minHeight: 50 }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Tiny but excellent"
-              />
+              <Label>Notes</Label>
+              <Textarea className="mt-1" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Tiny but excellent" />
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={handleSave}
-                style={{
-                  flex: 1,
-                  padding: 10,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: '#111',
-                  color: '#fff',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                Save Place
-              </button>
-              <button
-                onClick={onCancel}
-                style={{
-                  flex: 1,
-                  padding: 10,
-                  borderRadius: 8,
-                  border: '1px solid #ccc',
-                  background: '#fff',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
+            <div className="flex gap-2">
+              <Button onClick={handleSave} className="flex-1">Save Place</Button>
+              <Button variant="outline" onClick={onCancel} className="flex-1">Cancel</Button>
             </div>
           </div>
 
-          {error && (
-            <p style={{ color: '#c00', fontSize: 13, margin: '8px 0' }}>{error}</p>
-          )}
+          {error && <p className="text-destructive text-xs mt-2">{error}</p>}
         </>
       )}
     </div>

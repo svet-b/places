@@ -1,3 +1,4 @@
+import { MapPinned } from 'lucide-react';
 import { Place } from '../types';
 import { CATEGORY_MAP } from '../constants';
 
@@ -27,15 +28,15 @@ function formatDistance(km: number): string {
 export function ListView({ places, onSelectPlace, userLocation, showDistance }: Props) {
   if (places.length === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: '#999' }}>
-        <span style={{ fontSize: 32, marginBottom: 12 }}>📍</span>
-        <p style={{ margin: 0, fontSize: 14 }}>No places match your filters</p>
+      <div className="flex flex-col items-center justify-center py-15 px-5 text-muted-foreground">
+        <MapPinned className="h-8 w-8 mb-3 opacity-50" />
+        <p className="text-sm">No places match your filters</p>
       </div>
     );
   }
 
   return (
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+    <ul className="list-none p-0 m-0">
       {places.map((place) => {
         const cat = CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!;
         const dist =
@@ -47,86 +48,45 @@ export function ListView({ places, onSelectPlace, userLocation, showDistance }: 
           <li
             key={place.id}
             onClick={() => onSelectPlace?.(place)}
-            style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid #f0f0f0',
-              display: 'flex',
-              gap: 12,
-              alignItems: 'center',
-              cursor: onSelectPlace ? 'pointer' : undefined,
-            }}
+            className="px-4 py-3 border-b border-border/50 flex gap-3 items-center cursor-pointer hover:bg-accent transition-colors"
           >
             <div
+              className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
                 background: `${cat.color}15`,
                 border: `1px solid ${cat.color}30`,
-                flexShrink: 0,
               }}
             >
-              {cat.emoji}
+              <cat.icon className="h-5 w-5" style={{ color: cat.color }} />
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <div style={{
-                  fontWeight: 600,
-                  fontSize: 14,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  {place.name}
-                </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-baseline">
+                <div className="font-semibold text-sm truncate">{place.name}</div>
                 {dist !== null && (
-                  <span style={{ fontSize: 12, color: '#999', flexShrink: 0, marginLeft: 8 }}>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-2">
                     {formatDistance(dist)}
                   </span>
                 )}
               </div>
-              <div style={{
-                fontSize: 12,
-                color: '#888',
-                marginTop: 2,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}>
+              <div className="text-xs text-muted-foreground mt-0.5 truncate">
                 {[place.address, place.city].filter(Boolean).join(' · ')}
               </div>
               {place.notes && (
-                <div style={{
-                  fontSize: 12,
-                  color: '#aaa',
-                  marginTop: 2,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  {place.notes}
-                </div>
+                <div className="text-xs text-muted-foreground/60 mt-0.5 truncate">{place.notes}</div>
               )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-              <span style={{
-                fontSize: 10,
-                padding: '2px 7px',
-                borderRadius: 6,
-                background: `${cat.color}15`,
-                color: cat.color,
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: 0.3,
-              }}>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold uppercase tracking-wide"
+                style={{
+                  background: `${cat.color}15`,
+                  color: cat.color,
+                }}
+              >
                 {cat.label}
               </span>
               {place.visited && (
-                <span style={{ fontSize: 10, color: '#22C55E', fontWeight: 600 }}>visited</span>
+                <span className="text-[10px] text-green-500 font-semibold">visited</span>
               )}
             </div>
           </li>

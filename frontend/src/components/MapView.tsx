@@ -17,11 +17,10 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
   const labelsRef = useRef<HTMLDivElement[]>([]);
   const [mapReady, setMapReady] = useState(false);
 
-  // Initialize map
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const center = userLocation ?? { lat: 48.8566, lng: 2.3522 }; // Default: Paris
+    const center = userLocation ?? { lat: 48.8566, lng: 2.3522 };
 
     const map = new google.maps.Map(mapRef.current, {
       center,
@@ -36,7 +35,6 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     setMapReady(true);
   }, [userLocation]);
 
-  // Determine which labels to show based on visible markers and zoom
   const updateLabelVisibility = useCallback(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -44,34 +42,22 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     const zoom = map.getZoom() ?? 13;
     const bounds = map.getBounds();
 
-    // At low zoom, hide all labels; at high zoom, show all
     if (zoom < 13) {
-      for (const label of labelsRef.current) {
-        label.style.display = 'none';
-      }
+      for (const label of labelsRef.current) label.style.display = 'none';
       return;
     }
 
-    // Collect visible marker screen positions
     const projection = map.getProjection();
     if (!projection || !bounds) {
-      // Show all if we can't compute positions
-      for (const label of labelsRef.current) {
-        label.style.display = '';
-      }
+      for (const label of labelsRef.current) label.style.display = '';
       return;
     }
 
-    // At zoom >= 16, show all labels
     if (zoom >= 16) {
-      for (const label of labelsRef.current) {
-        label.style.display = '';
-      }
+      for (const label of labelsRef.current) label.style.display = '';
       return;
     }
 
-    // For medium zoom (13-15), thin out labels to avoid overlap
-    // Use a grid-based approach: only show one label per grid cell
     const scale = 1 << zoom;
     const cellSize = zoom >= 15 ? 4 : zoom >= 14 ? 8 : 16;
     const occupied = new Set<string>();
@@ -107,15 +93,11 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     }
   }, []);
 
-  // Update markers when places or filters change
   const updateMarkers = useCallback(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // Clear existing markers
-    for (const marker of markersRef.current) {
-      marker.map = null;
-    }
+    for (const marker of markersRef.current) marker.map = null;
     markersRef.current = [];
     labelsRef.current = [];
 
@@ -176,7 +158,6 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     if (mapReady) updateMarkers();
   }, [mapReady, updateMarkers]);
 
-  // Update label visibility on zoom/pan
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return;
@@ -190,15 +171,11 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     };
   }, [mapReady, updateLabelVisibility]);
 
-  // User location blue dot
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !userLocation) return;
 
-    // Remove previous user marker
-    if (userMarkerRef.current) {
-      userMarkerRef.current.map = null;
-    }
+    if (userMarkerRef.current) userMarkerRef.current.map = null;
 
     const dot = document.createElement('div');
     dot.style.width = '14px';
@@ -220,10 +197,5 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     map.panTo(userLocation);
   }, [userLocation]);
 
-  return (
-    <div
-      ref={mapRef}
-      style={{ width: '100%', height: '100%', minHeight: 400 }}
-    />
-  );
+  return <div ref={mapRef} className="w-full h-full min-h-[400px]" />;
 }
