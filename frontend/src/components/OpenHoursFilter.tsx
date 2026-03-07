@@ -10,6 +10,7 @@ interface Props {
   selectedDateTime: Date | null;
   onChangeDateTime: (dt: Date) => void;
   loading: boolean;
+  variant?: 'floating' | 'inline';
 }
 
 function formatDateTime(dt: Date): string {
@@ -23,7 +24,6 @@ function formatDateTime(dt: Date): string {
   return `${day} ${h12}:${mStr} ${ampm}`;
 }
 
-// Convert a Date to a value suitable for <input type="datetime-local">
 function toLocalInputValue(dt: Date): string {
   const y = dt.getFullYear();
   const mo = (dt.getMonth() + 1).toString().padStart(2, '0');
@@ -34,7 +34,7 @@ function toLocalInputValue(dt: Date): string {
 }
 
 export function isOpenAtTime(periods: HoursPeriod[], date: Date): boolean {
-  const day = date.getDay(); // 0=Sun
+  const day = date.getDay();
   const timeMinutes = date.getHours() * 60 + date.getMinutes();
 
   for (const period of periods) {
@@ -42,26 +42,16 @@ export function isOpenAtTime(periods: HoursPeriod[], date: Date): boolean {
     const closeMin = period.close.hour * 60 + period.close.minute;
 
     if (period.open.day === period.close.day) {
-      // Same-day period
       if (day === period.open.day && timeMinutes >= openMin && timeMinutes < closeMin) {
         return true;
       }
     } else {
-      // Crosses midnight (e.g. Fri 18:00 - Sat 02:00)
-      // Check if we're in the opening day after open time
-      if (day === period.open.day && timeMinutes >= openMin) {
-        return true;
-      }
-      // Check if we're in the closing day before close time
-      if (day === period.close.day && timeMinutes < closeMin) {
-        return true;
-      }
-      // Handle spans > 1 day (rare but possible, e.g. 24h places)
+      if (day === period.open.day && timeMinutes >= openMin) return true;
+      if (day === period.close.day && timeMinutes < closeMin) return true;
       const openDay = period.open.day;
       const closeDay = period.close.day;
       const span = closeDay > openDay ? closeDay - openDay : 7 - openDay + closeDay;
       if (span > 1) {
-        // Check if day is strictly between open and close days
         for (let d = 1; d < span; d++) {
           if ((openDay + d) % 7 === day) return true;
         }
@@ -71,7 +61,7 @@ export function isOpenAtTime(periods: HoursPeriod[], date: Date): boolean {
   return false;
 }
 
-export function OpenHoursFilter({ mode, onChangeMode, selectedDateTime, onChangeDateTime, loading }: Props) {
+export function OpenHoursFilter({ mode, onChangeMode, selectedDateTime, onChangeDateTime, loading, variant = 'floating' }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -88,17 +78,27 @@ export function OpenHoursFilter({ mode, onChangeMode, selectedDateTime, onChange
   }, [expanded, showPicker]);
 
   const isActive = mode !== 'off';
+  const isFloating = variant === 'floating';
+
+  // Shared pill styling — consistent height for both variants
+  const pillStyle = {
+    background: isActive ? '#f0fdf4' : '#fff',
+    borderColor: isActive ? '#16a34a' : '#e5e5e5',
+  };
+
+  const labelText = mode === 'now'
+    ? 'Open now'
+    : mode === 'at' && selectedDateTime
+      ? formatDateTime(selectedDateTime)
+      : 'Hours';
 
   return (
-    <div ref={ref} className="absolute top-2 left-3 z-10">
-      {/* Main pill — always visible */}
+    <div ref={ref} className="relative shrink-0">
+      {/* Main pill */}
       {!showPicker && (
         <div
-          className="flex items-center gap-1.5 rounded-full shadow-md border transition-all overflow-hidden"
-          style={{
-            background: isActive ? '#f0fdf4' : '#fff',
-            borderColor: isActive ? '#16a34a' : '#e5e5e5',
-          }}
+          className={`flex items-center h-8 rounded-full border transition-all overflow-hidden ${isFloating ? 'shadow-md' : ''}`}
+          style={pillStyle}
         >
           <button
             onClick={() => {
@@ -109,34 +109,27 @@ export function OpenHoursFilter({ mode, onChangeMode, selectedDateTime, onChange
                 setExpanded((prev) => !prev);
               }
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 h-full px-2.5 cursor-pointer shrink-0"
             style={{ color: isActive ? '#16a34a' : '#666' }}
           >
             {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Clock className="h-4 w-4" />
+              <Clock className="h-3.5 w-3.5" />
             )}
-            {mode === 'now' && (
-              <span className="text-xs font-medium">Open now</span>
-            )}
-            {mode === 'at' && selectedDateTime && (
+            {mode === 'at' && selectedDateTime ? (
               <span
-                className="text-xs font-medium underline decoration-dotted cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPicker(true);
-                }}
+                className="text-[13px] font-medium underline decoration-dotted"
+                onClick={(e) => { e.stopPropagation(); setShowPicker(true); }}
               >
-                {formatDateTime(selectedDateTime)}
+                {labelText}
               </span>
+            ) : (
+              <span className="text-[13px] font-medium">{labelText}</span>
             )}
-            {isActive && (
-              <X className="h-3 w-3 ml-0.5" />
-            )}
+            {isActive && <X className="h-3 w-3 ml-0.5" />}
           </button>
 
-          {/* Expanded options */}
           {expanded && !isActive && (
             <div className="flex items-center gap-0.5 pr-1.5">
               <button
@@ -167,9 +160,9 @@ export function OpenHoursFilter({ mode, onChangeMode, selectedDateTime, onChange
         </div>
       )}
 
-      {/* DateTime picker — replaces the pill while picking */}
+      {/* DateTime picker */}
       {showPicker && (
-        <div className="bg-white rounded-lg shadow-md border border-border p-2.5 flex flex-col gap-2">
+        <div className={`bg-white rounded-lg shadow-md border border-border p-2.5 flex flex-col gap-2 ${isFloating ? 'absolute top-0 left-0 z-10' : ''}`}>
           <div className="text-xs font-medium text-muted-foreground">Open at:</div>
           <input
             type="datetime-local"
@@ -182,9 +175,7 @@ export function OpenHoursFilter({ mode, onChangeMode, selectedDateTime, onChange
           />
           <div className="flex gap-1.5">
             <button
-              onClick={() => {
-                setShowPicker(false);
-              }}
+              onClick={() => setShowPicker(false)}
               className="flex-1 px-2 py-1 rounded text-xs font-medium border border-border text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
             >
               Cancel

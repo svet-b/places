@@ -7,7 +7,7 @@ interface Props {
 
 export function CategoryFilter({ activeCategories, onToggle }: Props) {
   return (
-    <div className="flex gap-1.5 overflow-x-auto py-2 px-4 shrink-0">
+    <>
       {CATEGORIES.map((cat) => {
         const active = activeCategories.has(cat.id);
         return (
@@ -26,6 +26,6 @@ export function CategoryFilter({ activeCategories, onToggle }: Props) {
           </button>
         );
       })}
-    </div>
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { ListView } from './components/ListView';
 import { MapView } from './components/MapView';
 import { AddPlacePanel } from './components/AddPlacePanel';
 import { CategoryFilter } from './components/CategoryFilter';
+import { MapCategoryFilter } from './components/MapCategoryFilter';
 import { OpenHoursFilter, HoursFilterMode, isOpenAtTime } from './components/OpenHoursFilter';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
@@ -362,37 +363,54 @@ export function App() {
         </div>
       </header>
 
-      {/* City filter + Category filter */}
-      <div className="shrink-0">
-        {cities.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto py-1.5 px-4">
-            <button
-              onClick={() => setActiveCity(null)}
-              className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
-                activeCity === null
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
-              }`}
-            >
-              All cities
-            </button>
-            {cities.map((city) => (
+      {/* Inline filters (list view) */}
+      {view === 'list' && (
+        <div className="shrink-0">
+          {cities.length > 1 && (
+            <div className="flex gap-1.5 overflow-x-auto py-1.5 px-4">
               <button
-                key={city}
-                onClick={() => setActiveCity(activeCity === city ? null : city)}
+                onClick={() => setActiveCity(null)}
                 className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
-                  activeCity === city
+                  activeCity === null
                     ? 'bg-primary text-primary-foreground border-primary'
                     : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
                 }`}
               >
-                {city}
+                All cities
               </button>
-            ))}
+              {cities.map((city) => (
+                <button
+                  key={city}
+                  onClick={() => setActiveCity(activeCity === city ? null : city)}
+                  className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
+                    activeCity === city
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+                  }`}
+                >
+                  {city}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-2 px-4 shrink-0">
+            <CategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
           </div>
-        )}
-        <CategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
-      </div>
+          <div className="px-4 pb-2">
+            <OpenHoursFilter
+              variant="inline"
+              mode={hoursFilterMode}
+              onChangeMode={(mode) => {
+                setHoursFilterMode(mode);
+                if (mode === 'now') setPlaceHours({});
+              }}
+              selectedDateTime={hoursDateTime}
+              onChangeDateTime={setHoursDateTime}
+              loading={hoursLoading}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Add place panel */}
       {showAdd && (
@@ -428,16 +446,23 @@ export function App() {
 
       {/* Main content */}
       <div className="flex-1 overflow-auto pb-14 relative">
-        <OpenHoursFilter
-          mode={hoursFilterMode}
-          onChangeMode={(mode) => {
-            setHoursFilterMode(mode);
-            if (mode === 'now') setPlaceHours({});
-          }}
-          selectedDateTime={hoursDateTime}
-          onChangeDateTime={setHoursDateTime}
-          loading={hoursLoading}
-        />
+        {/* Floating map filters */}
+        {view === 'map' && !loading && (
+          <div className="absolute top-2 left-3 z-10 flex gap-2 items-start">
+            <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
+            <OpenHoursFilter
+              variant="floating"
+              mode={hoursFilterMode}
+              onChangeMode={(mode) => {
+                setHoursFilterMode(mode);
+                if (mode === 'now') setPlaceHours({});
+              }}
+              selectedDateTime={hoursDateTime}
+              onChangeDateTime={setHoursDateTime}
+              loading={hoursLoading}
+            />
+          </div>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
