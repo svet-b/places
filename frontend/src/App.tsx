@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Place, NewPlace } from './types';
 import * as api from './api/client';
+import { CATEGORY_IDS } from './constants';
 import { useGeolocation } from './hooks/useGeolocation';
 import { loadGoogleMaps } from './loadMaps';
 import { ListView } from './components/ListView';
@@ -118,7 +119,7 @@ export function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [view, setView] = useState<'map' | 'list'>('map');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set());
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(CATEGORY_IDS));
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(
@@ -361,20 +362,22 @@ export function App() {
           >
             Refresh
           </button>
-          <button
-            onClick={() => setShowAdd(!showAdd)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 8,
-              border: 'none',
-              background: showAdd ? '#666' : '#111',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
-          >
-            {showAdd ? 'Cancel' : '+ Add'}
-          </button>
+          {showAdd && (
+            <button
+              onClick={() => setShowAdd(false)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#666',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </header>
 
@@ -502,7 +505,7 @@ export function App() {
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
       {/* Bottom navigation */}
-      <BottomNav view={view} onChangeView={setView} />
+      <BottomNav view={view} onChangeView={setView} onAdd={() => setShowAdd(true)} />
     </div>
   );
 }

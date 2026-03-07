@@ -386,7 +386,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
                 <label style={labelStyle}>Category</label>
                 <select style={inputStyle} value={category} onChange={(e) => setCategory(e.target.value)}>
                   {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat.id} value={cat.id}>{cat.emoji} {cat.label}</option>
                   ))}
                 </select>
               </div>
