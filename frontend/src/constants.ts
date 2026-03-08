@@ -18,14 +18,14 @@ export interface CategoryDef {
 }
 
 export const CATEGORIES: readonly CategoryDef[] = [
-  { id: 'coffee', label: 'Coffee', icon: Coffee, color: '#8B4513' },
-  { id: 'restaurant', label: 'Restaurant', icon: UtensilsCrossed, color: '#DC143C' },
-  { id: 'bar', label: 'Bar', icon: Wine, color: '#4B0082' },
-  { id: 'bakery', label: 'Bakery', icon: Croissant, color: '#D2691E' },
-  { id: 'shop', label: 'Shop', icon: ShoppingBag, color: '#2E8B57' },
-  { id: 'park', label: 'Park', icon: TreePine, color: '#228B22' },
-  { id: 'culture', label: 'Culture', icon: Drama, color: '#4169E1' },
-  { id: 'other', label: 'Other', icon: MapPin, color: '#708090' },
+  { id: 'coffee', label: 'Coffee', icon: Coffee, color: '#C06014' },
+  { id: 'bakery', label: 'Bakery', icon: Croissant, color: '#E89030' },
+  { id: 'restaurant', label: 'Restaurant', icon: UtensilsCrossed, color: '#E03E52' },
+  { id: 'bar', label: 'Bar', icon: Wine, color: '#7C3AED' },
+  { id: 'shop', label: 'Shop', icon: ShoppingBag, color: '#0EA5E9' },
+  { id: 'park', label: 'Park', icon: TreePine, color: '#22C55E' },
+  { id: 'culture', label: 'Culture', icon: Drama, color: '#6366F1' },
+  { id: 'other', label: 'Other', icon: MapPin, color: '#94A3B8' },
 ];
 
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id);

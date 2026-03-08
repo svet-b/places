@@ -9,7 +9,7 @@ interface Props {
 
 export function BottomNav({ view, onChangeView, onAdd }: Props) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 flex items-center justify-around bg-background border-t border-border z-[900] pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed bottom-0 left-0 right-0 flex items-center justify-around bg-background border-t border-border z-[900]" style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom) - 12px)' }}>
       <button
         onClick={() => onChangeView('map')}
         className={cn(
@@ -23,9 +23,9 @@ export function BottomNav({ view, onChangeView, onAdd }: Props) {
 
       <button
         onClick={onAdd}
-        className="w-12 h-12 rounded-[14px] border-none bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-lg -mt-3"
+        className="w-9 h-9 rounded-[10px] border-none bg-foreground text-background flex items-center justify-center cursor-pointer shadow-md"
       >
-        <Plus className="h-[22px] w-[22px]" strokeWidth={2.5} />
+        <Plus className="h-[18px] w-[18px]" strokeWidth={2.5} />
       </button>
 
       <button
