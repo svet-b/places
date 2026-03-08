@@ -10,6 +10,7 @@ import { AddPlacePanel } from './components/AddPlacePanel';
 import { CategoryFilter } from './components/CategoryFilter';
 import { MapCategoryFilter } from './components/MapCategoryFilter';
 import { OpenHoursFilter, HoursFilterMode, isOpenAtTime } from './components/OpenHoursFilter';
+import { MapFilterBar } from './components/MapFilterBar';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
@@ -108,6 +109,7 @@ export function App() {
   const [hoursDateTime, setHoursDateTime] = useState<Date | null>(null);
   const [placeHours, setPlaceHours] = useState<Record<string, api.PlaceHoursInfo>>({});
   const [hoursLoading, setHoursLoading] = useState(false);
+  const [activePriorities, setActivePriorities] = useState<Set<number>>(() => new Set([1, 2, 3]));
 
   const geo = useGeolocation();
 
@@ -145,6 +147,10 @@ export function App() {
   const preFilteredPlaces = useMemo(() => {
     let result = places.filter((p) => activeCategories.has(p.category));
 
+    if (activePriorities.size < 3) {
+      result = result.filter((p) => activePriorities.has(Number(p.priority) || 2));
+    }
+
     if (activeCity) {
       result = result.filter((p) => p.city === activeCity);
     }
@@ -162,7 +168,7 @@ export function App() {
     }
 
     return result;
-  }, [places, activeCategories, activeCity, debouncedSearch]);
+  }, [places, activeCategories, activePriorities, activeCity, debouncedSearch]);
 
   // Fetch place hours when filter is activated
   useEffect(() => {
@@ -323,6 +329,18 @@ export function App() {
     handleUpdate(place.id, { visited: !place.visited });
   }, [handleUpdate]);
 
+  function handleTogglePriority(priority: number) {
+    setActivePriorities((prev) => {
+      const next = new Set(prev);
+      if (next.has(priority)) {
+        if (next.size > 1) next.delete(priority);
+      } else {
+        next.add(priority);
+      }
+      return next;
+    });
+  }
+
   function handleToggleCategory(cat: string) {
     setActiveCategories((prev) => {
       const next = new Set(prev);
@@ -436,18 +454,26 @@ export function App() {
         {/* Floating map filters */}
         {view === 'map' && !loading && (
           <>
-            <div className="absolute left-3 z-10 flex gap-2 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
-              <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
-              <OpenHoursFilter
-                variant="floating"
-                mode={hoursFilterMode}
-                onChangeMode={(mode) => {
-                  setHoursFilterMode(mode);
-                  if (mode === 'now') setPlaceHours({});
-                }}
-                selectedDateTime={hoursDateTime}
-                onChangeDateTime={setHoursDateTime}
-                loading={hoursLoading}
+            <div className="absolute left-3 right-12 z-10 flex flex-col gap-1.5" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
+              <div className="flex gap-2 items-start">
+                <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
+                <OpenHoursFilter
+                  variant="floating"
+                  mode={hoursFilterMode}
+                  onChangeMode={(mode) => {
+                    setHoursFilterMode(mode);
+                    if (mode === 'now') setPlaceHours({});
+                  }}
+                  selectedDateTime={hoursDateTime}
+                  onChangeDateTime={setHoursDateTime}
+                  loading={hoursLoading}
+                />
+              </div>
+              <MapFilterBar
+                activePriorities={activePriorities}
+                onTogglePriority={handleTogglePriority}
+                search={search}
+                onSearchChange={setSearch}
               />
             </div>
             <div className="absolute right-3 z-10" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
@@ -469,8 +495,7 @@ export function App() {
           />
         ) : mapsLoaded ? (
           <MapView
-            places={hoursFilterMode !== 'off' ? filteredPlaces : places}
-            activeCategories={activeCategories}
+            places={filteredPlaces}
             userLocation={geo.location}
             onSelectPlace={handleSelectPlace}
           />

@@ -96,6 +96,17 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
                 >
                   {cat.label}
                 </span>
+                {place.priority && (
+                  <span
+                    className="text-[11px] px-2.5 py-0.5 rounded-lg font-semibold tracking-wide"
+                    style={{
+                      background: Number(place.priority) === 1 ? '#EF444415' : Number(place.priority) === 2 ? '#F59E0B15' : '#94A3B815',
+                      color: Number(place.priority) === 1 ? '#EF4444' : Number(place.priority) === 2 ? '#F59E0B' : '#94A3B8',
+                    }}
+                  >
+                    {Number(place.priority) === 1 ? 'High' : Number(place.priority) === 2 ? 'Medium' : 'Low'}
+                  </span>
+                )}
               </div>
               <h2 className="text-xl font-bold mb-1">{place.name}</h2>
             </>
@@ -164,6 +175,7 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
 
           <div className="flex flex-col gap-3 mt-4">
             {place.cuisine && <Field label="Cuisine" value={place.cuisine} />}
+            {place.city && <Field label="City" value={place.city} />}
             {place.source && <Field label="Source" value={place.source} />}
             {place.list && <Field label="List" value={place.list} />}
             {place.notes && <Field label="Notes" value={place.notes} />}

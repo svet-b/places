@@ -4,12 +4,11 @@ import { CATEGORY_MAP } from '../constants';
 
 interface Props {
   places: Place[];
-  activeCategories: Set<string>;
   userLocation: { lat: number; lng: number } | null;
   onSelectPlace: (place: Place) => void;
 }
 
-export function MapView({ places, activeCategories, userLocation, onSelectPlace }: Props) {
+export function MapView({ places, userLocation, onSelectPlace }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
@@ -101,9 +100,7 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     markersRef.current = [];
     labelsRef.current = [];
 
-    const filtered = places.filter(
-      (p) => p.lat && p.lng && activeCategories.has(p.category),
-    );
+    const filtered = places.filter((p) => p.lat && p.lng);
 
     for (const place of filtered) {
       const catColor = (CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!).color;
@@ -157,7 +154,7 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     }
 
     updateLabelVisibility();
-  }, [places, activeCategories, onSelectPlace, updateLabelVisibility]);
+  }, [places, onSelectPlace, updateLabelVisibility]);
 
   useEffect(() => {
     if (mapReady) updateMarkers();

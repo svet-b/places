@@ -65,7 +65,7 @@ export function MapCategoryFilter({ activeCategories, onToggle }: Props) {
 
       {expanded && (
         <div
-          className="fixed mt-1.5 bg-white rounded-lg shadow-lg border border-border py-2 overflow-x-auto"
+          className="fixed mt-1.5 bg-white rounded-lg shadow-lg border border-border py-2 overflow-x-auto z-50"
           style={{ left: '12px', right: '12px', top: ref.current?.getBoundingClientRect().bottom ?? 0 }}
         >
           <div className="flex gap-1.5 px-2">
