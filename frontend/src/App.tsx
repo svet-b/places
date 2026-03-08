@@ -389,7 +389,7 @@ export function App() {
 
       {/* Add place panel */}
       {showAdd && (
-        <div className="px-4 shrink-0">
+        <div className="px-4 shrink-0" style={{ paddingTop: view === 'map' ? 'max(8px, env(safe-area-inset-top))' : undefined }}>
           <AddPlacePanel
             onSubmit={handleAdd}
             onCancel={() => setShowAdd(false)}
