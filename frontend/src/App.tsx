@@ -405,12 +405,12 @@ export function App() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search..."
-            className="flex-1 !h-8 !text-[13px] !py-1"
+            className="flex-1"
           />
           <Select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="w-auto !h-8 !text-[13px] !py-1"
+            className="w-auto"
           >
             <option value="date">Newest</option>
             <option value="name">A-Z</option>
