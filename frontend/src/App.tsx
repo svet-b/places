@@ -394,6 +394,11 @@ export function App() {
             onSubmit={handleAdd}
             onCancel={() => setShowAdd(false)}
             mapsLoaded={mapsLoaded}
+            places={places}
+            onViewExisting={(place) => {
+              setShowAdd(false);
+              setSelectedPlace(place);
+            }}
           />
         </div>
       )}

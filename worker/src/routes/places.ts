@@ -17,6 +17,14 @@ app.post('/places', async (c) => {
     return c.json({ error: 'name is required' }, 400);
   }
 
+  if (body.google_place_id) {
+    const existing = await getPlaces(c.env);
+    const dupe = existing.find((p) => p.google_place_id === body.google_place_id);
+    if (dupe) {
+      return c.json({ error: 'duplicate', existing_id: dupe.id, existing_name: dupe.name }, 409);
+    }
+  }
+
   const place = {
     id: body.id || generateId(),
     name: body.name,

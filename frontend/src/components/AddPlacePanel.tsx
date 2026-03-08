@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { NewPlace } from '../types';
+import { Place, NewPlace } from '../types';
 import { CATEGORIES } from '../constants';
 import * as api from '../api/client';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ interface Props {
   onSubmit: (place: NewPlace, imageBase64?: string) => void;
   onCancel: () => void;
   mapsLoaded: boolean;
+  places: Place[];
+  onViewExisting: (place: Place) => void;
 }
 
 async function compressImage(file: File, maxSize = 1200): Promise<string> {
@@ -52,8 +54,9 @@ interface PlaceIdentity {
   city: string;
 }
 
-export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
+export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewExisting }: Props) {
   const [identity, setIdentity] = useState<PlaceIdentity | null>(null);
+  const [duplicatePlace, setDuplicatePlace] = useState<Place | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -66,6 +69,17 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
   const [list, setList] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  function checkDuplicate(googlePlaceId: string): Place | null {
+    if (!googlePlaceId) return null;
+    return places.find((p) => p.google_place_id === googlePlaceId) ?? null;
+  }
+
+  function setIdentityWithDupeCheck(id: PlaceIdentity) {
+    const dupe = checkDuplicate(id.google_place_id);
+    setDuplicatePlace(dupe);
+    setIdentity(id);
+  }
 
   const fileRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +103,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
         (c) => c.types.includes('locality'),
       );
 
-      setIdentity({
+      setIdentityWithDupeCheck({
         name: place.name ?? '',
         address: place.formatted_address ?? '',
         lat: place.geometry.location.lat(),
@@ -122,7 +136,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
     try {
       const result = await api.analyzeScreenshot(imageBase64);
       const m = result.merged;
-      setIdentity({
+      setIdentityWithDupeCheck({
         name: m.name,
         address: m.address,
         lat: m.lat,
@@ -147,7 +161,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
     setError(null);
     try {
       const resolved = await api.resolveUrl(mapsUrl.trim());
-      setIdentity({
+      setIdentityWithDupeCheck({
         name: resolved.name,
         address: resolved.address,
         lat: resolved.lat,
@@ -281,13 +295,39 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIdentity(null)}
+              onClick={() => { setIdentity(null); setDuplicatePlace(null); }}
               className="mt-1.5 h-7 text-xs text-muted-foreground"
             >
               Change place
             </Button>
           </div>
 
+          {duplicatePlace ? (
+            <div className="rounded-lg border border-border bg-background p-3 mb-3">
+              <p className="text-sm font-medium">
+                This place is already in your list
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                &ldquo;{duplicatePlace.name}&rdquo; was added on {duplicatePlace.date_added}.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onViewExisting(duplicatePlace);
+                    onCancel();
+                  }}
+                  className="flex-1"
+                >
+                  View existing entry
+                </Button>
+                <Button variant="outline" size="sm" onClick={onCancel} className="flex-1">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
           {imagePreview && (
             <img
               src={imagePreview}
@@ -338,6 +378,8 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded }: Props) {
           </div>
 
           {error && <p className="text-destructive text-xs mt-2">{error}</p>}
+            </>
+          )}
         </>
       )}
     </div>
