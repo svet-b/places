@@ -150,6 +150,19 @@ export function getPlaceHours(placeIds: string[]): Promise<Record<string, PlaceH
   });
 }
 
+export interface FillMissingResult {
+  total: number;
+  matched: number;
+  failed: number;
+  failures: string[];
+}
+
+export function fillMissingData(): Promise<FillMissingResult> {
+  return request<FillMissingResult>('/places/fill-missing', {
+    method: 'POST',
+  });
+}
+
 export function uploadImage(imageBase64: string, filename: string): Promise<{ url: string }> {
   return request<{ url: string }>('/upload-image', {
     method: 'POST',

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../index';
 import { getPlaces, appendPlace, updatePlace, deletePlace } from '../services/sheets';
-import { getPlaceHours } from '../services/places-api';
+import { getPlaceHours, resolvePlace } from '../services/places-api';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -69,6 +69,40 @@ app.post('/places/hours', async (c) => {
   const ids = body.placeIds.slice(0, 50);
   const hours = await getPlaceHours(c.env, ids);
   return c.json(hours);
+});
+
+app.post('/places/fill-missing', async (c) => {
+  const places = await getPlaces(c.env);
+  const missing = places.filter((p) => !p.google_place_id);
+
+  let matched = 0;
+  let failed = 0;
+  const failures: string[] = [];
+
+  for (const place of missing) {
+    try {
+      const city = place.city || 'Paris';
+      const resolved = await resolvePlace(c.env, place.name, city);
+      if (resolved) {
+        await updatePlace(c.env, place.id, {
+          address: resolved.address,
+          lat: String(resolved.lat),
+          lng: String(resolved.lng),
+          google_place_id: resolved.google_place_id,
+          google_maps_url: resolved.google_maps_url,
+        });
+        matched++;
+      } else {
+        failed++;
+        failures.push(place.name);
+      }
+    } catch {
+      failed++;
+      failures.push(place.name);
+    }
+  }
+
+  return c.json({ total: missing.length, matched, failed, failures });
 });
 
 app.delete('/places/:id', async (c) => {

@@ -13,6 +13,7 @@ import { OpenHoursFilter, HoursFilterMode, isOpenAtTime } from './components/Ope
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
+import { ToolsMenu } from './components/ToolsMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -312,6 +313,12 @@ export function App() {
     });
   }, []);
 
+  const refreshPlaces = useCallback(() => {
+    api.getPlaces()
+      .then(setPlaces)
+      .catch((e) => setToast(e.message));
+  }, []);
+
   const handleToggleVisited = useCallback((place: Place) => {
     handleUpdate(place.id, { visited: !place.visited });
   }, [handleUpdate]);
@@ -428,20 +435,25 @@ export function App() {
       <div className="flex-1 overflow-auto pb-14 relative">
         {/* Floating map filters */}
         {view === 'map' && !loading && (
-          <div className="absolute left-3 z-10 flex gap-2 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
-            <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
-            <OpenHoursFilter
-              variant="floating"
-              mode={hoursFilterMode}
-              onChangeMode={(mode) => {
-                setHoursFilterMode(mode);
-                if (mode === 'now') setPlaceHours({});
-              }}
-              selectedDateTime={hoursDateTime}
-              onChangeDateTime={setHoursDateTime}
-              loading={hoursLoading}
-            />
-          </div>
+          <>
+            <div className="absolute left-3 z-10 flex gap-2 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
+              <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
+              <OpenHoursFilter
+                variant="floating"
+                mode={hoursFilterMode}
+                onChangeMode={(mode) => {
+                  setHoursFilterMode(mode);
+                  if (mode === 'now') setPlaceHours({});
+                }}
+                selectedDateTime={hoursDateTime}
+                onChangeDateTime={setHoursDateTime}
+                loading={hoursLoading}
+              />
+            </div>
+            <div className="absolute right-3 z-10" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
+              <ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} />
+            </div>
+          </>
         )}
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
