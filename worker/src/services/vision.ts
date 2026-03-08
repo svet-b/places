@@ -1,4 +1,5 @@
 import { Env } from '../index';
+import { getAccessToken } from './sheets';
 
 interface AnalysisResult {
   name: string | null;
@@ -11,31 +12,27 @@ interface AnalysisResult {
 }
 
 export async function analyzeScreenshot(env: Env, imageBase64: string): Promise<AnalysisResult> {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: 'image/jpeg',
-                data: imageBase64,
+  const accessToken = await getAccessToken(env);
+  const resp = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: imageBase64,
+                },
               },
-            },
-            {
-              type: 'text',
-              text: `Look at this screenshot and extract information about a place (restaurant, cafe, bar, shop, etc.) that is being shown or recommended.
+              {
+                text: `Look at this screenshot and extract information about a place (restaurant, cafe, bar, shop, etc.) that is being shown or recommended.
 
 Return a JSON object with these fields (use null for any you can't determine):
 {
@@ -49,26 +46,29 @@ Return a JSON object with these fields (use null for any you can't determine):
 }
 
 Return ONLY the JSON object, no other text.`,
-            },
-          ],
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: 'application/json',
         },
-      ],
-    }),
-  });
+      }),
+    }
+  );
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`Anthropic API error: ${resp.status} ${text}`);
+    throw new Error(`Gemini API error: ${resp.status} ${text}`);
   }
 
   const data = (await resp.json()) as {
-    content: { type: string; text: string }[];
+    candidates: { content: { parts: { text: string }[] } }[];
   };
 
-  const text = data.content.find((c) => c.type === 'text')?.text ?? '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
   try {
-    // Extract JSON from the response (handle markdown code blocks)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found');
     return JSON.parse(jsonMatch[0]) as AnalysisResult;

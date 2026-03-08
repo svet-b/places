@@ -11,7 +11,6 @@ export type Env = {
   GOOGLE_SERVICE_ACCOUNT_EMAIL: string;
   GOOGLE_PRIVATE_KEY: string;
   SPREADSHEET_ID: string;
-  ANTHROPIC_API_KEY: string;
   GOOGLE_PLACES_API_KEY: string;
   GOOGLE_MAPS_KEY: string;
   SCREENSHOTS_BUCKET: R2Bucket;
