@@ -139,7 +139,7 @@ export function OpenHoursFilter({ mode, onChangeMode, selectedDateTime, onChange
                 }}
                 className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer whitespace-nowrap text-gray-500 hover:bg-gray-100 hover:text-green-600 transition-colors"
               >
-                Now
+                Open now
               </button>
               <span className="text-gray-300 text-xs">|</span>
               <button

@@ -25,9 +25,9 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     const map = new google.maps.Map(mapRef.current, {
       center,
       zoom: 13,
-      mapId: 'places-map',
+      mapId: 'fe583e5529650df6d49e1616',
       disableDefaultUI: true,
-      zoomControl: true,
+      zoomControl: false,
       gestureHandling: 'greedy',
     });
 

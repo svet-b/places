@@ -16,7 +16,7 @@ import { Toast } from './components/Toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { RefreshCw, X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('');
@@ -134,15 +134,6 @@ export function App() {
       .catch((e) => setToast(e.message))
       .finally(() => setLoading(false));
   }, [authed]);
-
-  const refresh = useCallback(async () => {
-    try {
-      const fresh = await api.getPlaces();
-      setPlaces(fresh);
-    } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Failed to refresh');
-    }
-  }, []);
 
   const cities = useMemo(
     () => [...new Set(places.map((p) => p.city).filter(Boolean))].sort(),
@@ -347,25 +338,9 @@ export function App() {
 
   return (
     <div className="h-dvh flex flex-col">
-      {/* Header */}
-      <header className="flex justify-between items-center px-4 py-3 pt-[max(12px,env(safe-area-inset-top))] border-b border-border shrink-0 gap-2">
-        <h1 className="text-lg font-semibold shrink-0">Places</h1>
-        <div className="flex gap-1.5">
-          <Button variant="outline" size="icon" onClick={refresh}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          {showAdd && (
-            <Button variant="secondary" size="sm" onClick={() => setShowAdd(false)}>
-              <X className="h-4 w-4 mr-1" />
-              Cancel
-            </Button>
-          )}
-        </div>
-      </header>
-
       {/* Inline filters (list view) */}
       {view === 'list' && (
-        <div className="shrink-0">
+        <div className="shrink-0 pt-[max(8px,env(safe-area-inset-top))]">
           {cities.length > 1 && (
             <div className="flex gap-1.5 overflow-x-auto py-1.5 px-4">
               <button
@@ -430,12 +405,12 @@ export function App() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search..."
-            className="flex-1"
+            className="flex-1 !h-8 !text-[13px] !py-1"
           />
           <Select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="w-auto"
+            className="w-auto !h-8 !text-[13px] !py-1"
           >
             <option value="date">Newest</option>
             <option value="name">A-Z</option>
@@ -448,7 +423,7 @@ export function App() {
       <div className="flex-1 overflow-auto pb-14 relative">
         {/* Floating map filters */}
         {view === 'map' && !loading && (
-          <div className="absolute top-2 left-3 z-10 flex gap-2 items-start">
+          <div className="absolute left-3 z-10 flex gap-2 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
             <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
             <OpenHoursFilter
               variant="floating"
