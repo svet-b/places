@@ -106,39 +106,40 @@ export function MapView({ places, activeCategories, userLocation, onSelectPlace 
     );
 
     for (const place of filtered) {
-      // Container is sized only to the pin; label is positioned absolutely below
-      // so showing/hiding the label doesn't shift the pin's anchor point
+      const catColor = (CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!).color;
+
       const container = document.createElement('div');
       container.style.position = 'relative';
-      container.style.width = '14px';
-      container.style.height = '14px';
+      container.style.width = '20px';
+      container.style.height = '20px';
       container.style.cursor = 'pointer';
 
       const pin = document.createElement('div');
-      pin.style.width = '14px';
-      pin.style.height = '14px';
+      pin.style.width = '20px';
+      pin.style.height = '20px';
       pin.style.borderRadius = '50%';
-      pin.style.background = (CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!).color;
-      pin.style.border = '2px solid #fff';
-      pin.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
+      pin.style.background = catColor;
+      pin.style.border = '2.5px solid #fff';
+      pin.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
 
       const label = document.createElement('div');
       label.textContent = place.name;
       label.style.position = 'absolute';
-      label.style.top = '16px';
+      label.style.top = '24px';
       label.style.left = '50%';
       label.style.transform = 'translateX(-50%)';
-      label.style.fontSize = '11px';
+      label.style.fontSize = '12.5px';
       label.style.fontWeight = '600';
-      label.style.color = '#333';
-      label.style.background = 'rgba(255,255,255,0.85)';
-      label.style.padding = '1px 4px';
-      label.style.borderRadius = '3px';
+      label.style.color = '#1a1a1a';
+      label.style.background = 'rgba(255,255,255,0.92)';
+      label.style.padding = '2px 6px';
+      label.style.borderRadius = '4px';
       label.style.whiteSpace = 'nowrap';
-      label.style.maxWidth = '120px';
+      label.style.maxWidth = '140px';
       label.style.overflow = 'hidden';
       label.style.textOverflow = 'ellipsis';
       label.style.pointerEvents = 'none';
+      label.style.boxShadow = '0 1px 3px rgba(0,0,0,0.15)';
 
       container.appendChild(pin);
       container.appendChild(label);
