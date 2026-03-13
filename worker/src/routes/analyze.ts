@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { Env } from '../index';
-import { analyzeScreenshot } from '../services/vision';
+import { analyzeScreenshot, analyzeInstagramPost } from '../services/vision';
 import { resolvePlace, resolveMapsUrl } from '../services/places-api';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -23,6 +23,65 @@ app.post('/analyze-screenshot', async (c) => {
   if (analysis.name) {
     try {
       // Always include city context for better results
+      const city = analysis.city || 'Paris';
+      resolved = await resolvePlace(c.env, analysis.name, city);
+    } catch (e) {
+      console.error('Place resolution failed:', e);
+    }
+  }
+
+  return c.json({
+    analysis,
+    resolved,
+    merged: {
+      name: resolved?.name ?? analysis.name ?? '',
+      category: analysis.category ?? 'other',
+      address: resolved?.address ?? analysis.address_hint ?? '',
+      city: resolved?.city ?? analysis.city ?? 'Paris',
+      lat: resolved?.lat ?? 0,
+      lng: resolved?.lng ?? 0,
+      google_place_id: resolved?.google_place_id ?? '',
+      google_maps_url: resolved?.google_maps_url ?? '',
+      source: [analysis.source_platform, analysis.source_account].filter(Boolean).join(' — '),
+      notes: analysis.notes ?? '',
+    },
+  });
+});
+
+app.post('/analyze-instagram', async (c) => {
+  const body = await c.req.json<{ url: string }>();
+
+  if (!body.url) {
+    return c.json({ error: 'url is required' }, 400);
+  }
+
+  // Fetch the Instagram page HTML
+  let html: string;
+  try {
+    const resp = await fetch(body.url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      redirect: 'follow',
+    });
+
+    if (!resp.ok) {
+      return c.json({ error: `Failed to fetch Instagram page: ${resp.status}` }, 502);
+    }
+
+    html = await resp.text();
+  } catch (e) {
+    return c.json({ error: 'Failed to fetch Instagram page' }, 502);
+  }
+
+  const analysis = await analyzeInstagramPost(c.env, html, body.url);
+
+  // Try to resolve via Google Places if we got a name
+  let resolved = null;
+  if (analysis.name) {
+    try {
       const city = analysis.city || 'Paris';
       resolved = await resolvePlace(c.env, analysis.name, city);
     } catch (e) {

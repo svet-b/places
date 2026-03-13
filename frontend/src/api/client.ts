@@ -109,6 +109,13 @@ export interface AnalyzeResult {
   };
 }
 
+export function analyzeInstagram(url: string): Promise<AnalyzeResult> {
+  return request<AnalyzeResult>('/analyze-instagram', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+}
+
 export function analyzeScreenshot(imageBase64: string): Promise<AnalyzeResult> {
   return request<AnalyzeResult>('/analyze-screenshot', {
     method: 'POST',

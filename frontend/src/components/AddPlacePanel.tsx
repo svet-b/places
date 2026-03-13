@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Upload, Search, Link, Loader2 } from 'lucide-react';
+import { Upload, Search, Link, Loader2, Instagram } from 'lucide-react';
 
 interface Props {
   onSubmit: (place: NewPlace, imageBase64?: string) => void;
@@ -62,6 +62,8 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
   const [analyzing, setAnalyzing] = useState(false);
   const [mapsUrl, setMapsUrl] = useState('');
   const [resolvingUrl, setResolvingUrl] = useState(false);
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [analyzingInstagram, setAnalyzingInstagram] = useState(false);
   const [priority, setPriority] = useState(2);
   const [category, setCategory] = useState('restaurant');
   const [cuisine, setCuisine] = useState('');
@@ -177,6 +179,32 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
     }
   }
 
+  async function handleAnalyzeInstagram() {
+    if (!instagramUrl.trim()) return;
+    setAnalyzingInstagram(true);
+    setError(null);
+    try {
+      const result = await api.analyzeInstagram(instagramUrl.trim());
+      const m = result.merged;
+      setIdentityWithDupeCheck({
+        name: m.name,
+        address: m.address,
+        lat: m.lat,
+        lng: m.lng,
+        google_place_id: m.google_place_id,
+        google_maps_url: m.google_maps_url,
+        city: m.city || 'Paris',
+      });
+      if (m.category) setCategory(m.category);
+      if (m.source) setSource(m.source);
+      if (m.notes) setNotes(m.notes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to analyze Instagram post');
+    } finally {
+      setAnalyzingInstagram(false);
+    }
+  }
+
   function handleSave() {
     if (!identity?.name?.trim()) return;
     onSubmit(
@@ -265,6 +293,29 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
                 size="sm"
               >
                 {resolvingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Go'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Instagram URL */}
+          <div className="mb-3 pb-3 border-b border-border">
+            <Label className="mb-1.5 flex items-center gap-1.5">
+              <Instagram className="h-3 w-3" />
+              Instagram post
+            </Label>
+            <div className="flex gap-1.5">
+              <Input
+                className="flex-1"
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                placeholder="Paste an Instagram post link"
+              />
+              <Button
+                onClick={handleAnalyzeInstagram}
+                disabled={!instagramUrl.trim() || analyzingInstagram}
+                size="sm"
+              >
+                {analyzingInstagram ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Go'}
               </Button>
             </div>
           </div>
