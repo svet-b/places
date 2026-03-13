@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { Env } from '../index';
-import { getPlaces, appendPlace, updatePlace, deletePlace } from '../services/sheets';
+import { getPlaces, appendPlace, updatePlace, deletePlace, generateId } from '../services/sheets';
 import { getPlaceHours, resolvePlace } from '../services/places-api';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -115,16 +115,5 @@ app.delete('/places/:id', async (c) => {
 
   return c.body(null, 204);
 });
-
-function generateId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let id = '';
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  for (const b of bytes) {
-    id += chars[b % chars.length];
-  }
-  return id;
-}
 
 export default app;

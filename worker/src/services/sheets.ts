@@ -127,6 +127,34 @@ export async function getPlaces(env: Env): Promise<Place[]> {
     return [];
   }
 
+  // Backfill blank IDs for rows added manually in the sheet
+  const backfillData: { range: string; values: string[][] }[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i][0]) {
+      const newId = generateId();
+      rows[i][0] = newId;
+      backfillData.push({
+        range: `places!A${i + 1}`,
+        values: [[newId]],
+      });
+    }
+  }
+
+  if (backfillData.length > 0) {
+    const batchUrl = `${SHEETS_BASE}/${env.SPREADSHEET_ID}/values:batchUpdate`;
+    await fetch(batchUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        valueInputOption: 'RAW',
+        data: backfillData,
+      }),
+    });
+  }
+
   // First row is headers, rest are data
   const headerRow = rows[0];
   return rows.slice(1).map((row) => {
@@ -136,6 +164,17 @@ export async function getPlaces(env: Env): Promise<Place[]> {
     });
     return place as Place;
   });
+}
+
+export function generateId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  for (const b of bytes) {
+    id += chars[b % chars.length];
+  }
+  return id;
 }
 
 export async function updatePlace(env: Env, id: string, updates: Partial<Place>): Promise<Place | null> {
