@@ -452,7 +452,7 @@ export function App() {
       {/* Main content */}
       <div
         className="flex-1 overflow-auto relative"
-        style={view === 'list' ? { paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))' } : undefined}
+        style={view === 'list' ? { paddingBottom: 'calc(5rem + max(16px, env(safe-area-inset-bottom)))' } : undefined}
       >
         {/* Floating map filters */}
         {view === 'map' && !loading && (
