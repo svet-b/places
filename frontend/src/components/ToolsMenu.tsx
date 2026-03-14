@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, DatabaseZap, Loader2 } from 'lucide-react';
+import { MoreHorizontal, DatabaseZap, Loader2 } from 'lucide-react';
 import * as api from '../api/client';
 
 interface Props {
@@ -61,13 +61,13 @@ export function ToolsMenu({ onComplete, onPlacesChanged }: Props) {
         {running ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         ) : (
-          <Menu className="h-4 w-4 text-[#666]" />
+          <MoreHorizontal className="h-4 w-4 text-[#666]" />
         )}
       </button>
 
       {open && (
         <div
-          className="absolute right-0 mt-1.5 bg-white rounded-lg shadow-lg border border-border py-1 min-w-[200px] z-50"
+          className="absolute right-0 bottom-full mb-1.5 bg-white rounded-lg shadow-lg border border-border py-1 min-w-[200px] z-50"
         >
           <button
             onClick={handleFillMissing}

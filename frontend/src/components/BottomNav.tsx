@@ -1,16 +1,18 @@
 import { MapPin, List, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ReactNode } from 'react';
 
 interface Props {
   view: 'map' | 'list';
   onChangeView: (view: 'map' | 'list') => void;
   onAdd: () => void;
+  trailing?: ReactNode;
 }
 
-export function BottomNav({ view, onChangeView, onAdd }: Props) {
+export function BottomNav({ view, onChangeView, onAdd, trailing }: Props) {
   return (
     <nav
-      className="fixed left-0 right-0 flex justify-center z-[900] pointer-events-none"
+      className="fixed left-0 right-0 flex items-center justify-center gap-2 z-[900] pointer-events-none"
       style={{ bottom: 'max(16px, env(safe-area-inset-bottom))' }}
     >
       <div className="flex items-center gap-1 bg-background/90 backdrop-blur-md rounded-full shadow-lg border border-border/50 px-2 py-1.5 pointer-events-auto">
@@ -43,6 +45,7 @@ export function BottomNav({ view, onChangeView, onAdd }: Props) {
           <span className="text-[10px] font-medium tracking-wide">List</span>
         </button>
       </div>
+      {trailing && <div className="pointer-events-auto fixed right-3" style={{ bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 4px))' }}>{trailing}</div>}
     </nav>
   );
 }

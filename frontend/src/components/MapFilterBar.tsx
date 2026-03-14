@@ -46,7 +46,7 @@ export function MapFilterBar({ activePriorities, onTogglePriority, search, onSea
   const allActive = activePriorities.size === 3;
 
   return (
-    <div className="flex gap-2 items-start">
+    <>
       {/* Priority dropdown */}
       <div ref={prioRef} className="relative">
         <button
@@ -118,6 +118,6 @@ export function MapFilterBar({ activePriorities, onTogglePriority, search, onSea
           <Search className="h-3.5 w-3.5 text-[#666]" />
         </button>
       )}
-    </div>
+    </>
   );
 }

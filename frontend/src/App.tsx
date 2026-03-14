@@ -456,33 +456,26 @@ export function App() {
       >
         {/* Floating map filters */}
         {view === 'map' && !loading && (
-          <>
-            <div className="absolute left-3 right-12 z-10 flex flex-col gap-1.5" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
-              <div className="flex gap-2 items-start">
-                <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
-                <OpenHoursFilter
-                  variant="floating"
-                  mode={hoursFilterMode}
-                  onChangeMode={(mode) => {
-                    setHoursFilterMode(mode);
-                    if (mode === 'now') setPlaceHours({});
-                  }}
-                  selectedDateTime={hoursDateTime}
-                  onChangeDateTime={setHoursDateTime}
-                  loading={hoursLoading}
-                />
-              </div>
-              <MapFilterBar
-                activePriorities={activePriorities}
-                onTogglePriority={handleTogglePriority}
-                search={search}
-                onSearchChange={setSearch}
-              />
-            </div>
-            <div className="absolute right-3 z-10" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
-              <ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} />
-            </div>
-          </>
+          <div className="absolute left-3 right-3 z-10 flex flex-wrap gap-2 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
+            <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
+            <OpenHoursFilter
+              variant="floating"
+              mode={hoursFilterMode}
+              onChangeMode={(mode) => {
+                setHoursFilterMode(mode);
+                if (mode === 'now') setPlaceHours({});
+              }}
+              selectedDateTime={hoursDateTime}
+              onChangeDateTime={setHoursDateTime}
+              loading={hoursLoading}
+            />
+            <MapFilterBar
+              activePriorities={activePriorities}
+              onTogglePriority={handleTogglePriority}
+              search={search}
+              onSearchChange={setSearch}
+            />
+          </div>
         )}
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
@@ -522,7 +515,12 @@ export function App() {
 
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
 
-      <BottomNav view={view} onChangeView={setView} onAdd={() => setShowAdd(true)} />
+      <BottomNav
+        view={view}
+        onChangeView={setView}
+        onAdd={() => setShowAdd(true)}
+        trailing={<ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} />}
+      />
     </div>
   );
 }
