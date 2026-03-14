@@ -362,7 +362,7 @@ export function App() {
   }
 
   return (
-    <div className="h-dvh flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Inline filters (list view) */}
       {view === 'list' && (
         <div className="shrink-0 pt-[max(8px,env(safe-area-inset-top))]">
