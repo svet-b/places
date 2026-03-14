@@ -22,8 +22,13 @@
 }
 
 @layer base {
-  html, body, #root {
+  html, body {
     height: 100%;
+  }
+
+  #root {
+    position: fixed;
+    inset: 0;
   }
 
   body {
