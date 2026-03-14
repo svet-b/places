@@ -450,7 +450,10 @@ export function App() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto pb-14 relative">
+      <div
+        className="flex-1 overflow-auto relative"
+        style={view === 'list' ? { paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))' } : undefined}
+      >
         {/* Floating map filters */}
         {view === 'map' && !loading && (
           <>
