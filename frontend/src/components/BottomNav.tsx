@@ -45,7 +45,7 @@ export function BottomNav({ view, onChangeView, onAdd, trailing }: Props) {
           <span className="text-[10px] font-medium tracking-wide">List</span>
         </button>
       </div>
-      {trailing && <div className="pointer-events-auto fixed right-3" style={{ bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 4px))' }}>{trailing}</div>}
+      {trailing && <div className="pointer-events-auto absolute right-3">{trailing}</div>}
     </nav>
   );
 }
