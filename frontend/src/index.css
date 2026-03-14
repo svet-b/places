@@ -22,11 +22,14 @@
 }
 
 @layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
   body {
     font-family: system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     background: var(--color-background);
     color: var(--color-foreground);
   }
-
 }
