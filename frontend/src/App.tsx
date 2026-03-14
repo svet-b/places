@@ -40,7 +40,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <div className="h-dvh flex items-center justify-center bg-muted">
+    <div className="h-full flex items-center justify-center bg-muted">
       <form onSubmit={handleSubmit} className="bg-background p-8 rounded-2xl shadow-lg w-[300px] text-center">
         <h1 className="text-2xl font-semibold mb-6">Places</h1>
         <Input
