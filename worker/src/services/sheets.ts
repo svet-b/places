@@ -162,6 +162,7 @@ export async function getPlaces(env: Env): Promise<Place[]> {
     headerRow.forEach((key, i) => {
       place[key] = row[i] ?? '';
     });
+    if (place.category) place.category = place.category.toLowerCase();
     return place as Place;
   });
 }
@@ -209,6 +210,7 @@ export async function updatePlace(env: Env, id: string, updates: Partial<Place>)
       existingPlace[key] = String(value ?? '');
     }
   }
+  if (existingPlace.category) existingPlace.category = existingPlace.category.toLowerCase();
 
   const updatedRow = HEADERS.map((key) => existingPlace[key] ?? '');
   const range = `places!A${rowIndex + 1}:Q${rowIndex + 1}`;

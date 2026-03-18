@@ -29,7 +29,7 @@ app.post('/places', async (c) => {
     id: body.id || generateId(),
     name: body.name,
     priority: body.priority ?? '',
-    category: body.category ?? 'other',
+    category: (body.category ?? 'other').toLowerCase(),
     cuisine: body.cuisine ?? '',
     address: body.address ?? '',
     lat: body.lat ?? '',
