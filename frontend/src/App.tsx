@@ -7,7 +7,6 @@ import { loadGoogleMaps } from './loadMaps';
 import { ListView } from './components/ListView';
 import { MapView } from './components/MapView';
 import { AddPlacePanel } from './components/AddPlacePanel';
-import { CategoryFilter } from './components/CategoryFilter';
 import { MapCategoryFilter } from './components/MapCategoryFilter';
 import { OpenHoursFilter, HoursFilterMode, isOpenAtTime } from './components/OpenHoursFilter';
 import { MapFilterBar } from './components/MapFilterBar';
@@ -353,6 +352,10 @@ export function App() {
     });
   }
 
+  function handleSetAllCategories(categoryIds: string[]) {
+    setActiveCategories(new Set(categoryIds));
+  }
+
   const handleSelectPlace = useCallback((place: Place) => {
     setSelectedPlace(place);
   }, []);
@@ -393,8 +396,8 @@ export function App() {
               ))}
             </div>
           )}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-2 px-4 shrink-0">
-            <CategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
+          <div className="flex items-center gap-1.5 py-2 px-4 shrink-0">
+            <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} onSetAll={handleSetAllCategories} />
           </div>
           <div className="px-4 pb-2">
             <OpenHoursFilter
@@ -457,7 +460,7 @@ export function App() {
         {/* Floating map filters */}
         {view === 'map' && !loading && (
           <div className="absolute left-3 right-3 z-10 flex flex-wrap gap-2 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
-            <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} />
+            <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} onSetAll={handleSetAllCategories} />
             <OpenHoursFilter
               variant="floating"
               mode={hoursFilterMode}
