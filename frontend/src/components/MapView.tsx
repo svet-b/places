@@ -209,7 +209,8 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
       e.preventDefault();
       const delta = touch.clientY - startY;
       // drag down = zoom in, drag up = zoom out (matches Google Maps convention)
-      const newZoom = Math.max(1, Math.min(21, startZoom + delta / 40));
+      const rawZoom = startZoom + delta / 100;
+      const newZoom = Math.round(Math.max(1, Math.min(21, rawZoom)) * 100) / 100;
       map?.setZoom(newZoom);
     }
 
