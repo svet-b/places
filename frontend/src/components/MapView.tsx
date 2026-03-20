@@ -187,13 +187,14 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     let startZoom = 0;
 
     function onTouchStart(e: TouchEvent) {
-      if (e.touches.length !== 1) { isDraggingZoom = false; return; }
+      const touch = e.touches[0];
+      if (e.touches.length !== 1 || !touch) { isDraggingZoom = false; return; }
       const now = Date.now();
-      const y = e.touches[0].clientY;
+      const y = touch.clientY;
       if (now - lastTapTime < 300 && Math.abs(y - lastTapY) < 40) {
         isDraggingZoom = true;
         startY = y;
-        startZoom = map.getZoom() ?? 13;
+        startZoom = map?.getZoom() ?? 13;
         e.preventDefault();
       } else {
         isDraggingZoom = false;
@@ -203,12 +204,13 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (!isDraggingZoom || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      if (!isDraggingZoom || e.touches.length !== 1 || !touch) return;
       e.preventDefault();
-      const delta = e.touches[0].clientY - startY;
+      const delta = touch.clientY - startY;
       // drag down = zoom in, drag up = zoom out (matches Google Maps convention)
       const newZoom = Math.max(1, Math.min(21, startZoom + delta / 40));
-      map.setZoom(newZoom);
+      map?.setZoom(newZoom);
     }
 
     function onTouchEnd() { isDraggingZoom = false; }
