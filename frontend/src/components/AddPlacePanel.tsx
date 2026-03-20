@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Upload, Search, Link, Loader2, Instagram } from 'lucide-react';
+import { Upload, Search, Link, Loader2 } from 'lucide-react';
 
 interface Props {
   onSubmit: (place: NewPlace, imageBase64?: string) => void;
@@ -54,17 +54,52 @@ interface PlaceIdentity {
   city: string;
 }
 
+const GOOGLE_TYPE_TO_CATEGORY: Record<string, string> = {
+  cafe: 'coffee',
+  coffee_shop: 'coffee',
+  bakery: 'bakery',
+  restaurant: 'restaurant',
+  meal_delivery: 'restaurant',
+  meal_takeaway: 'restaurant',
+  food_court: 'restaurant',
+  bar: 'bar',
+  night_club: 'bar',
+  wine_bar: 'bar',
+  store: 'shop',
+  shopping_mall: 'shop',
+  clothing_store: 'shop',
+  book_store: 'shop',
+  grocery_or_supermarket: 'shop',
+  supermarket: 'shop',
+  park: 'park',
+  garden: 'park',
+  museum: 'culture',
+  art_gallery: 'culture',
+  library: 'culture',
+  performing_arts_theater: 'culture',
+  movie_theater: 'culture',
+};
+
+function mapGoogleTypeToCategory(primaryType: string | undefined): string | null {
+  if (!primaryType) return null;
+  return GOOGLE_TYPE_TO_CATEGORY[primaryType] ?? null;
+}
+
+function isInstagramUrl(url: string): boolean {
+  return /instagram\.com\/(p|reel)\//i.test(url);
+}
+
+
 export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewExisting }: Props) {
   const [identity, setIdentity] = useState<PlaceIdentity | null>(null);
   const [duplicatePlace, setDuplicatePlace] = useState<Place | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [mapsUrl, setMapsUrl] = useState('');
+  const [urlInput, setUrlInput] = useState('');
   const [resolvingUrl, setResolvingUrl] = useState(false);
-  const [instagramUrl, setInstagramUrl] = useState('');
-  const [analyzingInstagram, setAnalyzingInstagram] = useState(false);
   const [priority, setPriority] = useState(2);
+  const [visited, setVisited] = useState<'no' | 'liked' | 'disliked'>('no');
   const [category, setCategory] = useState('restaurant');
   const [cuisine, setCuisine] = useState('');
   const [source, setSource] = useState('');
@@ -93,7 +128,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
 
     const ac = new google.maps.places.Autocomplete(searchInputRef.current, {
       types: ['establishment'],
-      fields: ['formatted_address', 'geometry', 'place_id', 'name', 'address_components', 'url'],
+      fields: ['formatted_address', 'geometry', 'place_id', 'name', 'address_components', 'url', 'types'],
       componentRestrictions: { country: 'fr' },
     });
 
@@ -114,6 +149,13 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
         google_maps_url: place.url ?? '',
         city: cityComp?.long_name ?? 'Paris',
       });
+
+      // Map Google type to our category
+      const placeTypes = place.types ?? [];
+      for (const t of placeTypes) {
+        const mapped = mapGoogleTypeToCategory(t);
+        if (mapped) { setCategory(mapped); break; }
+      }
     });
 
     autocompleteRef.current = ac;
@@ -158,50 +200,44 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
   }
 
   async function handleResolveUrl() {
-    if (!mapsUrl.trim()) return;
+    const url = urlInput.trim();
+    if (!url) return;
     setResolvingUrl(true);
     setError(null);
     try {
-      const resolved = await api.resolveUrl(mapsUrl.trim());
-      setIdentityWithDupeCheck({
-        name: resolved.name,
-        address: resolved.address,
-        lat: resolved.lat,
-        lng: resolved.lng,
-        google_place_id: resolved.google_place_id,
-        google_maps_url: resolved.google_maps_url,
-        city: resolved.city || 'Paris',
-      });
+      if (isInstagramUrl(url)) {
+        const result = await api.analyzeInstagram(url);
+        const m = result.merged;
+        setIdentityWithDupeCheck({
+          name: m.name,
+          address: m.address,
+          lat: m.lat,
+          lng: m.lng,
+          google_place_id: m.google_place_id,
+          google_maps_url: m.google_maps_url,
+          city: m.city || 'Paris',
+        });
+        if (m.category) setCategory(m.category);
+        if (m.source) setSource(m.source);
+        if (m.notes) setNotes(m.notes);
+      } else {
+        const resolved = await api.resolveUrl(url);
+        setIdentityWithDupeCheck({
+          name: resolved.name,
+          address: resolved.address,
+          lat: resolved.lat,
+          lng: resolved.lng,
+          google_place_id: resolved.google_place_id,
+          google_maps_url: resolved.google_maps_url,
+          city: resolved.city || 'Paris',
+        });
+        const mapped = mapGoogleTypeToCategory(resolved.primary_type);
+        if (mapped) setCategory(mapped);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not resolve URL');
     } finally {
       setResolvingUrl(false);
-    }
-  }
-
-  async function handleAnalyzeInstagram() {
-    if (!instagramUrl.trim()) return;
-    setAnalyzingInstagram(true);
-    setError(null);
-    try {
-      const result = await api.analyzeInstagram(instagramUrl.trim());
-      const m = result.merged;
-      setIdentityWithDupeCheck({
-        name: m.name,
-        address: m.address,
-        lat: m.lat,
-        lng: m.lng,
-        google_place_id: m.google_place_id,
-        google_maps_url: m.google_maps_url,
-        city: m.city || 'Paris',
-      });
-      if (m.category) setCategory(m.category);
-      if (m.source) setSource(m.source);
-      if (m.notes) setNotes(m.notes);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to analyze Instagram post');
-    } finally {
-      setAnalyzingInstagram(false);
     }
   }
 
@@ -222,6 +258,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
         list,
         notes,
         priority,
+        visited,
       },
       imageBase64 ?? undefined,
     );
@@ -274,48 +311,25 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
             )}
           </div>
 
-          {/* Google Maps URL */}
+          {/* URL input (Google Maps or Instagram) */}
           <div className="mb-3 pb-3 border-b border-border">
             <Label className="mb-1.5 flex items-center gap-1.5">
               <Link className="h-3 w-3" />
-              Google Maps URL
+              Google Maps or Instagram URL
             </Label>
             <div className="flex gap-1.5">
               <Input
                 className="flex-1"
-                value={mapsUrl}
-                onChange={(e) => setMapsUrl(e.target.value)}
-                placeholder="Paste a Google Maps link"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="Paste a link"
               />
               <Button
                 onClick={handleResolveUrl}
-                disabled={!mapsUrl.trim() || resolvingUrl}
+                disabled={!urlInput.trim() || resolvingUrl}
                 size="sm"
               >
                 {resolvingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Go'}
-              </Button>
-            </div>
-          </div>
-
-          {/* Instagram URL */}
-          <div className="mb-3 pb-3 border-b border-border">
-            <Label className="mb-1.5 flex items-center gap-1.5">
-              <Instagram className="h-3 w-3" />
-              Instagram post
-            </Label>
-            <div className="flex gap-1.5">
-              <Input
-                className="flex-1"
-                value={instagramUrl}
-                onChange={(e) => setInstagramUrl(e.target.value)}
-                placeholder="Paste an Instagram post link"
-              />
-              <Button
-                onClick={handleAnalyzeInstagram}
-                disabled={!instagramUrl.trim() || analyzingInstagram}
-                size="sm"
-              >
-                {analyzingInstagram ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Go'}
               </Button>
             </div>
           </div>
@@ -407,20 +421,40 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
               </div>
             </div>
             <div>
+              <Label>Been here?</Label>
+              <div className="flex gap-2 mt-1">
+                {(['no', 'liked', 'disliked'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setVisited(v)}
+                    className="flex-1 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors"
+                    style={{
+                      background: visited === v ? (v === 'liked' ? '#f0fdf4' : v === 'disliked' ? '#fef2f2' : '#f5f5f5') : '#fff',
+                      borderColor: visited === v ? (v === 'liked' ? '#22c55e' : v === 'disliked' ? '#ef4444' : '#333') : '#e5e5e5',
+                      color: visited === v ? (v === 'liked' ? '#16a34a' : v === 'disliked' ? '#dc2626' : '#333') : '#888',
+                    }}
+                  >
+                    {v === 'no' ? 'Not yet' : v === 'liked' ? 'Liked' : 'Disliked'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <Label>Cuisine</Label>
-              <Input className="mt-1" value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="Italian, French, etc." />
+              <Input className="mt-1" value={cuisine} onChange={(e) => setCuisine(e.target.value)} />
             </div>
             <div>
               <Label>Source</Label>
-              <Input className="mt-1" value={source} onChange={(e) => setSource(e.target.value)} placeholder="Instagram - @account" />
+              <Input className="mt-1" value={source} onChange={(e) => setSource(e.target.value)} />
             </div>
             <div>
               <Label>List</Label>
-              <Input className="mt-1" value={list} onChange={(e) => setList(e.target.value)} placeholder="50 best coffee shops in Paris" />
+              <Input className="mt-1" value={list} onChange={(e) => setList(e.target.value)} />
             </div>
             <div>
               <Label>Notes</Label>
-              <Textarea className="mt-1" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Tiny but excellent" />
+              <Textarea className="mt-1" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSave} className="flex-1">Save Place</Button>

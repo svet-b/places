@@ -8,6 +8,7 @@ interface ResolvedPlace {
   google_place_id: string;
   google_maps_url: string;
   city: string;
+  primary_type?: string;
 }
 
 export async function resolvePlace(env: Env, name: string, city?: string): Promise<ResolvedPlace | null> {
@@ -17,7 +18,7 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
     method: 'POST',
     headers: {
       'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
-      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.id,places.googleMapsUri,places.addressComponents',
+      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.id,places.googleMapsUri,places.addressComponents,places.primaryType',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ textQuery: query }),
@@ -36,6 +37,7 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
       id: string;
       googleMapsUri: string;
       addressComponents?: { types: string[]; longText: string }[];
+      primaryType?: string;
     }[];
   };
 
@@ -54,6 +56,7 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
     google_place_id: place.id,
     google_maps_url: place.googleMapsUri,
     city: cityComponent?.longText ?? city ?? '',
+    primary_type: place.primaryType,
   };
 }
 

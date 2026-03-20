@@ -131,6 +131,7 @@ export interface ResolvedPlace {
   google_place_id: string;
   google_maps_url: string;
   city: string;
+  primary_type?: string;
 }
 
 export function resolveUrl(url: string): Promise<ResolvedPlace> {

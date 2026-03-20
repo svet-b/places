@@ -247,7 +247,7 @@ export function App() {
       source: newPlace.source ?? '',
       list: newPlace.list ?? '',
       notes: newPlace.notes ?? '',
-      visited: 'no',
+      visited: newPlace.visited ?? 'no',
       date_added: new Date().toISOString().split('T')[0] ?? '',
       screenshot_url: '',
       city: newPlace.city || 'Paris',
