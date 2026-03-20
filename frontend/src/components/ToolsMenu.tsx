@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { MoreHorizontal, DatabaseZap, Loader2 } from 'lucide-react';
+import { MoreHorizontal, DatabaseZap, Loader2, Eye, ExternalLink } from 'lucide-react';
 import * as api from '../api/client';
 
 interface Props {
   onComplete: (message: string) => void;
   onPlacesChanged: () => void;
+  showDisliked: boolean;
+  onToggleShowDisliked: () => void;
+  spreadsheetUrl: string | null;
 }
 
-export function ToolsMenu({ onComplete, onPlacesChanged }: Props) {
+export function ToolsMenu({ onComplete, onPlacesChanged, showDisliked, onToggleShowDisliked, spreadsheetUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -69,6 +72,35 @@ export function ToolsMenu({ onComplete, onPlacesChanged }: Props) {
         <div
           className="absolute right-0 bottom-full mb-1.5 bg-white rounded-lg shadow-lg border border-border py-1 min-w-[200px] z-50"
         >
+          <button
+            onClick={() => { onToggleShowDisliked(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+          >
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            <span className="flex-1">Show disliked</span>
+            <span
+              className="w-4 h-4 rounded border flex items-center justify-center text-xs"
+              style={{
+                borderColor: showDisliked ? '#22C55E' : '#ccc',
+                background: showDisliked ? '#22C55E' : 'transparent',
+                color: '#fff',
+              }}
+            >
+              {showDisliked ? '✓' : ''}
+            </span>
+          </button>
+          {spreadsheetUrl && (
+            <a
+              href={spreadsheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer no-underline text-foreground"
+            >
+              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+              Google Sheet
+            </a>
+          )}
           <button
             onClick={handleFillMissing}
             className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"

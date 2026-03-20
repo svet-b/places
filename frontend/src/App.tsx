@@ -110,6 +110,8 @@ export function App() {
   const [placeHours, setPlaceHours] = useState<Record<string, api.PlaceHoursInfo>>({});
   const [hoursLoading, setHoursLoading] = useState(false);
   const [activePriorities, setActivePriorities] = useState<Set<number>>(() => new Set([1, 2, 3]));
+  const [showDisliked, setShowDisliked] = useState(false);
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
 
   const geo = useGeolocation();
 
@@ -125,7 +127,10 @@ export function App() {
   useEffect(() => {
     if (!authed) return;
     api.getConfig()
-      .then(({ googleMapsKey }) => loadGoogleMaps(googleMapsKey))
+      .then((config) => {
+        if (config.spreadsheetUrl) setSpreadsheetUrl(config.spreadsheetUrl);
+        return loadGoogleMaps(config.googleMapsKey);
+      })
       .then(() => setMapsLoaded(true))
       .catch(() => {});
   }, [authed]);
@@ -146,6 +151,10 @@ export function App() {
   // Places before open-now filtering (used to determine which IDs to query)
   const preFilteredPlaces = useMemo(() => {
     let result = places.filter((p) => activeCategories.has(p.category));
+
+    if (!showDisliked) {
+      result = result.filter((p) => (p.visited ?? '').toLowerCase() !== 'disliked');
+    }
 
     if (activePriorities.size < 3) {
       result = result.filter((p) => activePriorities.has(Number(p.priority) || 2));
@@ -168,7 +177,7 @@ export function App() {
     }
 
     return result;
-  }, [places, activeCategories, activePriorities, activeCity, debouncedSearch]);
+  }, [places, activeCategories, activePriorities, activeCity, debouncedSearch, showDisliked]);
 
   // Fetch place hours when filter is activated
   useEffect(() => {
@@ -238,7 +247,7 @@ export function App() {
       source: newPlace.source ?? '',
       list: newPlace.list ?? '',
       notes: newPlace.notes ?? '',
-      visited: false,
+      visited: 'no',
       date_added: new Date().toISOString().split('T')[0] ?? '',
       screenshot_url: '',
       city: newPlace.city || 'Paris',
@@ -325,8 +334,8 @@ export function App() {
       .catch((e) => setToast(e.message));
   }, []);
 
-  const handleToggleVisited = useCallback((place: Place) => {
-    handleUpdate(place.id, { visited: !place.visited });
+  const handleSetVisited = useCallback((place: Place, status: string) => {
+    handleUpdate(place.id, { visited: status });
   }, [handleUpdate]);
 
   function handleTogglePriority(priority: number) {
@@ -510,7 +519,7 @@ export function App() {
         <PlaceDetail
           place={selectedPlace}
           onClose={() => setSelectedPlace(null)}
-          onToggleVisited={handleToggleVisited}
+          onSetVisited={handleSetVisited}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
         />
@@ -522,7 +531,7 @@ export function App() {
         view={view}
         onChangeView={setView}
         onAdd={() => setShowAdd(true)}
-        trailing={<ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} />}
+        trailing={<ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} showDisliked={showDisliked} onToggleShowDisliked={() => setShowDisliked((v) => !v)} spreadsheetUrl={spreadsheetUrl} />}
       />
     </div>
   );

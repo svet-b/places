@@ -60,6 +60,7 @@ app.use('*', authMiddleware);
 app.get('/config', (c) => {
   return c.json({
     googleMapsKey: c.env.GOOGLE_MAPS_KEY,
+    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${c.env.SPREADSHEET_ID}/edit`,
   });
 });
 

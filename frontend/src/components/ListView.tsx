@@ -85,8 +85,11 @@ export function ListView({ places, onSelectPlace, userLocation, showDistance }: 
               >
                 {cat.label}
               </span>
-              {place.visited && (
-                <span className="text-[10px] text-green-500 font-semibold">visited</span>
+              {place.visited?.toLowerCase() === 'liked' && (
+                <span className="text-[10px] text-green-500 font-semibold">liked</span>
+              )}
+              {place.visited?.toLowerCase() === 'disliked' && (
+                <span className="text-[10px] text-red-400 font-semibold">disliked</span>
               )}
             </div>
           </li>

@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { X, Check, Pencil, Trash2, ExternalLink } from 'lucide-react';
+import { X, ThumbsUp, ThumbsDown, Pencil, Trash2, ExternalLink } from 'lucide-react';
 
 interface Props {
   place: Place;
   onClose: () => void;
-  onToggleVisited: (place: Place) => void;
+  onSetVisited: (place: Place, status: string) => void;
   onUpdate: (id: string, updates: Partial<Place>) => void;
   onDelete: (id: string) => void;
 }
@@ -27,7 +27,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelete }: Props) {
+export function PlaceDetail({ place, onClose, onSetVisited, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [screenshotEnlarged, setScreenshotEnlarged] = useState(false);
@@ -182,19 +182,31 @@ export function PlaceDetail({ place, onClose, onToggleVisited, onUpdate, onDelet
             {place.date_added && <Field label="Added" value={place.date_added} />}
           </div>
 
-          {/* Visited toggle */}
-          <div className="mt-4">
+          {/* Liked / Disliked toggles */}
+          <div className="mt-4 flex gap-2">
             <button
-              onClick={() => onToggleVisited(place)}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-[10px] text-[13px] font-medium cursor-pointer transition-colors border-[1.5px]"
+              onClick={() => onSetVisited(place, place.visited?.toLowerCase() === 'liked' ? 'no' : 'liked')}
+              className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 rounded-[10px] text-[13px] font-medium cursor-pointer transition-colors border-[1.5px]"
               style={{
-                borderColor: place.visited ? '#22C55E40' : '#ddd',
-                background: place.visited ? 'rgba(34,197,94,0.08)' : '#fafafa',
-                color: place.visited ? '#22C55E' : '#666',
+                borderColor: place.visited?.toLowerCase() === 'liked' ? '#22C55E40' : '#ddd',
+                background: place.visited?.toLowerCase() === 'liked' ? 'rgba(34,197,94,0.08)' : '#fafafa',
+                color: place.visited?.toLowerCase() === 'liked' ? '#22C55E' : '#666',
               }}
             >
-              <Check className="h-4 w-4" />
-              {place.visited ? 'Visited' : 'Mark as visited'}
+              <ThumbsUp className="h-4 w-4" />
+              Liked
+            </button>
+            <button
+              onClick={() => onSetVisited(place, place.visited?.toLowerCase() === 'disliked' ? 'no' : 'disliked')}
+              className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 rounded-[10px] text-[13px] font-medium cursor-pointer transition-colors border-[1.5px]"
+              style={{
+                borderColor: place.visited?.toLowerCase() === 'disliked' ? '#EF444440' : '#ddd',
+                background: place.visited?.toLowerCase() === 'disliked' ? 'rgba(239,68,68,0.08)' : '#fafafa',
+                color: place.visited?.toLowerCase() === 'disliked' ? '#EF4444' : '#666',
+              }}
+            >
+              <ThumbsDown className="h-4 w-4" />
+              Disliked
             </button>
           </div>
 

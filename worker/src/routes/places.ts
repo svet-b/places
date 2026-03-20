@@ -39,7 +39,7 @@ app.post('/places', async (c) => {
     source: body.source ?? '',
     list: body.list ?? '',
     notes: body.notes ?? '',
-    visited: body.visited ?? 'FALSE',
+    visited: body.visited ?? 'no',
     date_added: body.date_added || new Date().toISOString().split('T')[0],
     screenshot_url: body.screenshot_url ?? '',
     city: body.city ?? '',

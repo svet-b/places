@@ -12,7 +12,7 @@ export interface Place {
   source: string;
   list: string;
   notes: string;
-  visited: boolean;
+  visited: string; // 'no' | 'liked' | 'disliked'
   date_added: string;
   screenshot_url: string;
   city: string;

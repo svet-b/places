@@ -15,6 +15,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const labelsRef = useRef<HTMLDivElement[]>([]);
+  const pinsRef = useRef<{ container: HTMLDivElement; pin: HTMLDivElement; label: HTMLDivElement }[]>([]);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -93,6 +94,25 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     }
   }, []);
 
+  const updatePinSizes = useCallback(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const zoom = map.getZoom() ?? 13;
+    // 20px at zoom 16+, scale down to 12px at zoom 10
+    const size = Math.max(12, Math.min(20, 8 + (zoom - 10) * (8 / 6)));
+    const border = Math.max(1.5, Math.min(2.5, 1.0 + (zoom - 10) * (1 / 6)));
+    const px = `${Math.round(size)}px`;
+    const labelTop = `${Math.round(size) + 4}px`;
+    for (const { container, pin, label } of pinsRef.current) {
+      container.style.width = px;
+      container.style.height = px;
+      pin.style.width = px;
+      pin.style.height = px;
+      pin.style.borderWidth = `${border.toFixed(1)}px`;
+      label.style.top = labelTop;
+    }
+  }, []);
+
   const updateMarkers = useCallback(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -100,6 +120,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     for (const marker of markersRef.current) marker.map = null;
     markersRef.current = [];
     labelsRef.current = [];
+    pinsRef.current = [];
 
     const filtered = places.filter((p) => p.lat && p.lng);
 
@@ -112,12 +133,14 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
       container.style.height = '20px';
       container.style.cursor = 'pointer';
 
+      const visitedStatus = (place.visited ?? '').toLowerCase();
+      const borderColor = visitedStatus === 'liked' ? '#aaa' : visitedStatus === 'disliked' ? '#444' : '#fff';
       const pin = document.createElement('div');
       pin.style.width = '20px';
       pin.style.height = '20px';
       pin.style.borderRadius = '50%';
       pin.style.background = catColor;
-      pin.style.border = '2.5px solid #fff';
+      pin.style.border = `2.5px solid ${borderColor}`;
       pin.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
 
       const label = document.createElement('div');
@@ -142,6 +165,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
       container.appendChild(pin);
       container.appendChild(label);
       labelsRef.current.push(label);
+      pinsRef.current.push({ container, pin, label });
 
       const marker = new google.maps.marker.AdvancedMarkerElement({
         map,
@@ -155,7 +179,8 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     }
 
     updateLabelVisibility();
-  }, [places, onSelectPlace, updateLabelVisibility]);
+    updatePinSizes();
+  }, [places, onSelectPlace, updateLabelVisibility, updatePinSizes]);
 
   useEffect(() => {
     if (mapReady) updateMarkers();
@@ -165,14 +190,18 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return;
 
-    const zoomListener = map.addListener('zoom_changed', updateLabelVisibility);
-    const idleListener = map.addListener('idle', updateLabelVisibility);
+    function onZoomOrIdle() {
+      updateLabelVisibility();
+      updatePinSizes();
+    }
+    const zoomListener = map.addListener('zoom_changed', onZoomOrIdle);
+    const idleListener = map.addListener('idle', onZoomOrIdle);
 
     return () => {
       google.maps.event.removeListener(zoomListener);
       google.maps.event.removeListener(idleListener);
     };
-  }, [mapReady, updateLabelVisibility]);
+  }, [mapReady, updateLabelVisibility, updatePinSizes]);
 
   // Double-tap-and-drag to zoom (like native Google Maps app)
   useEffect(() => {

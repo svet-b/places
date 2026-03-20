@@ -30,8 +30,8 @@ export async function login(password: string): Promise<void> {
   setToken(data.token);
 }
 
-export async function getConfig(): Promise<{ googleMapsKey: string }> {
-  return request<{ googleMapsKey: string }>('/config');
+export async function getConfig(): Promise<{ googleMapsKey: string; spreadsheetUrl?: string }> {
+  return request<{ googleMapsKey: string; spreadsheetUrl?: string }>('/config');
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
