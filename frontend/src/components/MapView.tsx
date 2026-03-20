@@ -9,6 +9,7 @@ interface Props {
 }
 
 export function MapView({ places, userLocation, onSelectPlace }: Props) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
@@ -173,6 +174,56 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     };
   }, [mapReady, updateLabelVisibility]);
 
+  // Double-tap-and-drag to zoom (like native Google Maps app)
+  useEffect(() => {
+    const el = wrapperRef.current;
+    const map = mapInstanceRef.current;
+    if (!el || !map || !mapReady) return;
+
+    let lastTapTime = 0;
+    let lastTapY = 0;
+    let isDraggingZoom = false;
+    let startY = 0;
+    let startZoom = 0;
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) { isDraggingZoom = false; return; }
+      const now = Date.now();
+      const y = e.touches[0].clientY;
+      if (now - lastTapTime < 300 && Math.abs(y - lastTapY) < 40) {
+        isDraggingZoom = true;
+        startY = y;
+        startZoom = map.getZoom() ?? 13;
+        e.preventDefault();
+      } else {
+        isDraggingZoom = false;
+      }
+      lastTapTime = now;
+      lastTapY = y;
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (!isDraggingZoom || e.touches.length !== 1) return;
+      e.preventDefault();
+      const delta = e.touches[0].clientY - startY;
+      // drag down = zoom in, drag up = zoom out (matches Google Maps convention)
+      const newZoom = Math.max(1, Math.min(21, startZoom + delta / 40));
+      map.setZoom(newZoom);
+    }
+
+    function onTouchEnd() { isDraggingZoom = false; }
+
+    el.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
+    el.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+    el.addEventListener('touchend', onTouchEnd, { capture: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart, { capture: true });
+      el.removeEventListener('touchmove', onTouchMove, { capture: true });
+      el.removeEventListener('touchend', onTouchEnd, { capture: true });
+    };
+  }, [mapReady]);
+
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !userLocation) return;
@@ -199,5 +250,9 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     map.panTo(userLocation);
   }, [userLocation]);
 
-  return <div ref={mapRef} className="w-full h-full min-h-[400px]" />;
+  return (
+    <div ref={wrapperRef} className="w-full h-full min-h-[400px]">
+      <div ref={mapRef} className="w-full h-full" />
+    </div>
+  );
 }
