@@ -468,7 +468,7 @@ export function App() {
       >
         {/* Floating map filters */}
         {view === 'map' && !loading && (
-          <div className="absolute left-3 right-3 z-10 flex flex-wrap gap-2 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
+          <div className="absolute left-4 right-4 z-10 flex flex-wrap gap-1.5 items-start" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
             <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} onSetAll={handleSetAllCategories} />
             <OpenHoursFilter
               variant="floating"
