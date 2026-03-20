@@ -10,6 +10,7 @@ import { AddPlacePanel } from './components/AddPlacePanel';
 import { MapCategoryFilter } from './components/MapCategoryFilter';
 import { OpenHoursFilter, HoursFilterMode, isOpenAtTime } from './components/OpenHoursFilter';
 import { MapFilterBar } from './components/MapFilterBar';
+import { PriorityDropdown } from './components/PriorityDropdown';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
@@ -396,12 +397,10 @@ export function App() {
               ))}
             </div>
           )}
-          <div className="flex items-center gap-1.5 py-2 px-4 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 py-2 px-4 shrink-0">
             <MapCategoryFilter activeCategories={activeCategories} onToggle={handleToggleCategory} onSetAll={handleSetAllCategories} />
-          </div>
-          <div className="px-4 pb-2">
             <OpenHoursFilter
-              variant="inline"
+              variant="floating"
               mode={hoursFilterMode}
               onChangeMode={(mode) => {
                 setHoursFilterMode(mode);
@@ -411,6 +410,7 @@ export function App() {
               onChangeDateTime={setHoursDateTime}
               loading={hoursLoading}
             />
+            <PriorityDropdown activePriorities={activePriorities} onTogglePriority={handleTogglePriority} />
           </div>
         </div>
       )}
