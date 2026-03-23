@@ -85,6 +85,7 @@ app.post('/places/fill-missing', async (c) => {
       const resolved = await resolvePlace(c.env, place.name, city);
       if (resolved) {
         await updatePlace(c.env, place.id, {
+          name: resolved.name,
           address: resolved.address,
           lat: String(resolved.lat),
           lng: String(resolved.lng),
