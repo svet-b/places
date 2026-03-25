@@ -37,7 +37,7 @@ export async function analyzeScreenshot(env: Env, imageBase64: string): Promise<
 Return a JSON object with these fields (use null for any you can't determine):
 {
   "name": "place name",
-  "category": "one of: coffee, restaurant, bar, bakery, shop, park, culture, other",
+  "category": "one of: coffee, restaurant, bar, bakery, shop, other",
   "city": "city name",
   "address_hint": "any address or location info visible",
   "source_account": "social media account name if visible (e.g. @username)",
@@ -112,7 +112,7 @@ The HTML may contain OpenGraph meta tags, JSON-LD data, or post captions with us
 Return a JSON object with these fields (use null for any you can't determine):
 {
   "name": "place name",
-  "category": "one of: coffee, restaurant, bar, bakery, shop, park, culture, other",
+  "category": "one of: coffee, restaurant, bar, bakery, shop, other",
   "city": "city name",
   "address_hint": "any address or location info visible",
   "source_account": "Instagram account name (e.g. @username)",

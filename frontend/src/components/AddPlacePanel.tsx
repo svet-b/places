@@ -71,13 +71,6 @@ const GOOGLE_TYPE_TO_CATEGORY: Record<string, string> = {
   book_store: 'shop',
   grocery_or_supermarket: 'shop',
   supermarket: 'shop',
-  park: 'park',
-  garden: 'park',
-  museum: 'culture',
-  art_gallery: 'culture',
-  library: 'culture',
-  performing_arts_theater: 'culture',
-  movie_theater: 'culture',
 };
 
 function mapGoogleTypeToCategory(primaryType: string | undefined): string | null {

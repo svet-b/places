@@ -134,12 +134,15 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
       container.style.cursor = 'pointer';
 
       const visitedStatus = (place.visited ?? '').toLowerCase();
-      const borderColor = visitedStatus === 'liked' ? '#aaa' : visitedStatus === 'disliked' ? '#444' : '#fff';
+      const fadedFill = `${catColor}66`;
+      const fadedOutline = '#9ca3af';
+      const backgroundColor = visitedStatus === 'disliked' ? fadedFill : catColor;
+      const borderColor = visitedStatus === 'liked' ? '#444' : visitedStatus === 'disliked' ? fadedOutline : '#fff';
       const pin = document.createElement('div');
       pin.style.width = '20px';
       pin.style.height = '20px';
       pin.style.borderRadius = '50%';
-      pin.style.background = catColor;
+      pin.style.background = backgroundColor;
       pin.style.border = `2.5px solid ${borderColor}`;
       pin.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
 
