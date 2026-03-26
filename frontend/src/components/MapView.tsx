@@ -13,10 +13,12 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const markerPlacesRef = useRef<Place[]>([]);
   const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const labelsRef = useRef<HTMLDivElement[]>([]);
   const pinsRef = useRef<{ container: HTMLDivElement; pin: HTMLDivElement; label: HTMLDivElement }[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  const LABEL_VISIBILITY_THRESHOLD = 35;
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -40,28 +42,13 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    const zoom = map.getZoom() ?? 13;
     const bounds = map.getBounds();
-
-    if (zoom < 13) {
-      for (const label of labelsRef.current) label.style.display = 'none';
-      return;
-    }
-
-    const projection = map.getProjection();
-    if (!projection || !bounds) {
+    if (!bounds) {
       for (const label of labelsRef.current) label.style.display = '';
       return;
     }
 
-    if (zoom >= 16) {
-      for (const label of labelsRef.current) label.style.display = '';
-      return;
-    }
-
-    const scale = 1 << zoom;
-    const cellSize = zoom >= 15 ? 4 : zoom >= 14 ? 8 : 16;
-    const occupied = new Set<string>();
+    let visibleCount = 0;
 
     for (let i = 0; i < markersRef.current.length; i++) {
       const marker = markersRef.current[i];
@@ -72,25 +59,33 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
       if (!pos) { label.style.display = 'none'; continue; }
 
       const latLng = pos instanceof google.maps.LatLng ? pos : new google.maps.LatLng(pos.lat as number, pos.lng as number);
+      if (bounds.contains(latLng)) {
+        visibleCount++;
+      } else {
+        label.style.display = 'none';
+      }
+    }
 
+    const showLabels = visibleCount <= LABEL_VISIBILITY_THRESHOLD;
+
+    for (let i = 0; i < markersRef.current.length; i++) {
+      const marker = markersRef.current[i];
+      const label = labelsRef.current[i];
+      if (!marker || !label) continue;
+
+      const pos = marker.position;
+      if (!pos) {
+        label.style.display = 'none';
+        continue;
+      }
+
+      const latLng = pos instanceof google.maps.LatLng ? pos : new google.maps.LatLng(pos.lat as number, pos.lng as number);
       if (!bounds.contains(latLng)) {
         label.style.display = 'none';
         continue;
       }
 
-      const worldPoint = projection.fromLatLngToPoint(latLng);
-      if (!worldPoint) { label.style.display = 'none'; continue; }
-
-      const px = Math.floor((worldPoint.x * scale) / cellSize);
-      const py = Math.floor((worldPoint.y * scale) / cellSize);
-      const key = `${px},${py}`;
-
-      if (occupied.has(key)) {
-        label.style.display = 'none';
-      } else {
-        occupied.add(key);
-        label.style.display = '';
-      }
+      label.style.display = showLabels ? '' : 'none';
     }
   }, []);
 
@@ -119,6 +114,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
 
     for (const marker of markersRef.current) marker.map = null;
     markersRef.current = [];
+    markerPlacesRef.current = [];
     labelsRef.current = [];
     pinsRef.current = [];
 
@@ -179,6 +175,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
 
       marker.addListener('click', () => onSelectPlace(place));
       markersRef.current.push(marker);
+      markerPlacesRef.current.push(place);
     }
 
     updateLabelVisibility();
