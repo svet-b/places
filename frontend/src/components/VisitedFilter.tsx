@@ -26,7 +26,8 @@ export function VisitedFilter({ active, onToggle }: Props) {
     return () => document.removeEventListener('pointerdown', handleClick, true);
   }, [open]);
 
-  const isFiltered = active.size < 3;
+  const DEFAULT: VisitedStatus[] = ['liked', 'notbeen'];
+  const isFiltered = DEFAULT.length !== active.size || DEFAULT.some((s) => !active.has(s));
   const activeOptions = OPTIONS.filter((o) => active.has(o.value));
 
   return (
