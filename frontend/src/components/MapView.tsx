@@ -97,10 +97,8 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     const size = Math.max(12, Math.min(20, 8 + (zoom - 10) * (8 / 6)));
     const border = Math.max(1.5, Math.min(2.5, 1.0 + (zoom - 10) * (1 / 6)));
     const px = `${Math.round(size)}px`;
-    const labelTop = `${Math.round(size) + 4}px`;
-    for (const { container, pin, label } of pinsRef.current) {
-      container.style.width = px;
-      container.style.height = px;
+    const labelTop = `${Math.round(size / 2) + 26}px`;
+    for (const { pin, label } of pinsRef.current) {
       pin.style.width = px;
       pin.style.height = px;
       pin.style.borderWidth = `${border.toFixed(1)}px`;
@@ -125,9 +123,12 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
 
       const container = document.createElement('div');
       container.style.position = 'relative';
-      container.style.width = '20px';
-      container.style.height = '20px';
+      container.style.width = '44px';
+      container.style.height = '44px';
       container.style.cursor = 'pointer';
+      container.style.display = 'flex';
+      container.style.alignItems = 'center';
+      container.style.justifyContent = 'center';
 
       const visitedStatus = (place.visited ?? '').toLowerCase();
       const fadedFill = `${catColor}66`;
@@ -137,6 +138,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
       const pin = document.createElement('div');
       pin.style.width = '20px';
       pin.style.height = '20px';
+      pin.style.flexShrink = '0';
       pin.style.borderRadius = '50%';
       pin.style.background = backgroundColor;
       pin.style.border = `2.5px solid ${borderColor}`;
@@ -145,7 +147,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
       const label = document.createElement('div');
       label.textContent = place.name;
       label.style.position = 'absolute';
-      label.style.top = '24px';
+      label.style.top = '34px';
       label.style.left = '50%';
       label.style.transform = 'translateX(-50%)';
       label.style.fontSize = '12.5px';
