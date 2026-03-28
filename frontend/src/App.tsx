@@ -11,6 +11,7 @@ import { MapCategoryFilter } from './components/MapCategoryFilter';
 import { OpenHoursFilter, HoursFilterMode, isOpenAtTime } from './components/OpenHoursFilter';
 import { MapFilterBar } from './components/MapFilterBar';
 import { PriorityDropdown } from './components/PriorityDropdown';
+import { VisitedFilter, VisitedStatus } from './components/VisitedFilter';
 import { PlaceDetail } from './components/PlaceDetail';
 import { BottomNav } from './components/BottomNav';
 import { Toast } from './components/Toast';
@@ -110,7 +111,7 @@ export function App() {
   const [placeHours, setPlaceHours] = useState<Record<string, api.PlaceHoursInfo>>({});
   const [hoursLoading, setHoursLoading] = useState(false);
   const [activePriorities, setActivePriorities] = useState<Set<number>>(() => new Set([1, 2, 3]));
-  const [showDisliked, setShowDisliked] = useState(false);
+  const [activeVisited, setActiveVisited] = useState<Set<VisitedStatus>>(() => new Set(['liked', 'notbeen']));
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
 
   const geo = useGeolocation();
@@ -152,9 +153,12 @@ export function App() {
   const preFilteredPlaces = useMemo(() => {
     let result = places.filter((p) => activeCategories.has(p.category));
 
-    if (!showDisliked) {
-      result = result.filter((p) => (p.visited ?? '').toLowerCase() !== 'disliked');
-    }
+    result = result.filter((p) => {
+      const v = (p.visited ?? '').toLowerCase();
+      if (v === 'liked') return activeVisited.has('liked');
+      if (v === 'disliked') return activeVisited.has('disliked');
+      return activeVisited.has('notbeen');
+    });
 
     if (activePriorities.size < 3) {
       result = result.filter((p) => activePriorities.has(Number(p.priority) || 2));
@@ -177,7 +181,7 @@ export function App() {
     }
 
     return result;
-  }, [places, activeCategories, activePriorities, activeCity, debouncedSearch, showDisliked]);
+  }, [places, activeCategories, activePriorities, activeCity, debouncedSearch, activeVisited]);
 
   // Fetch place hours when filter is activated
   useEffect(() => {
@@ -338,6 +342,15 @@ export function App() {
     handleUpdate(place.id, { visited: status });
   }, [handleUpdate]);
 
+  function handleToggleVisited(status: VisitedStatus) {
+    setActiveVisited((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  }
+
   function handleTogglePriority(priority: number) {
     setActivePriorities((prev) => {
       const next = new Set(prev);
@@ -419,6 +432,7 @@ export function App() {
               onChangeDateTime={setHoursDateTime}
               loading={hoursLoading}
             />
+            <VisitedFilter active={activeVisited} onToggle={handleToggleVisited} />
             <PriorityDropdown activePriorities={activePriorities} onTogglePriority={handleTogglePriority} />
           </div>
         </div>
@@ -481,6 +495,7 @@ export function App() {
               onChangeDateTime={setHoursDateTime}
               loading={hoursLoading}
             />
+            <VisitedFilter active={activeVisited} onToggle={handleToggleVisited} />
             <MapFilterBar
               activePriorities={activePriorities}
               onTogglePriority={handleTogglePriority}
@@ -531,7 +546,7 @@ export function App() {
         view={view}
         onChangeView={setView}
         onAdd={() => setShowAdd(true)}
-        trailing={<ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} showDisliked={showDisliked} onToggleShowDisliked={() => setShowDisliked((v) => !v)} spreadsheetUrl={spreadsheetUrl} />}
+        trailing={<ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} spreadsheetUrl={spreadsheetUrl} />}
       />
     </div>
   );
