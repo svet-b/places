@@ -79,14 +79,6 @@ export function ToolsMenu({ onComplete, onPlacesChanged, spreadsheetUrl, cities,
                 <MapPin className="h-3.5 w-3.5" />
                 City
               </div>
-              {activeCity !== null && (
-                <button
-                  onClick={() => { onCityChange(null); setOpen(false); }}
-                  className="flex items-center justify-between w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
-                >
-                  <span className="pl-5">All cities</span>
-                </button>
-              )}
               {cities.map((city) => (
                 <button
                   key={city}

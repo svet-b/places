@@ -104,7 +104,7 @@ export function App() {
     () => (localStorage.getItem('places-sort') as SortMode) || 'date',
   );
   const [activeCity, setActiveCity] = useState<string | null>(
-    () => localStorage.getItem('places-city'),
+    () => localStorage.getItem('places-city') ?? 'Paris',
   );
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
