@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { MoreHorizontal, DatabaseZap, Loader2, ExternalLink } from 'lucide-react';
+import { MoreHorizontal, DatabaseZap, Loader2, ExternalLink, Check, MapPin } from 'lucide-react';
 import * as api from '../api/client';
 
 interface Props {
   onComplete: (message: string) => void;
   onPlacesChanged: () => void;
   spreadsheetUrl: string | null;
+  cities: string[];
+  activeCity: string | null;
+  onCityChange: (city: string | null) => void;
 }
 
-export function ToolsMenu({ onComplete, onPlacesChanged, spreadsheetUrl }: Props) {
+export function ToolsMenu({ onComplete, onPlacesChanged, spreadsheetUrl, cities, activeCity, onCityChange }: Props) {
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -70,6 +73,39 @@ export function ToolsMenu({ onComplete, onPlacesChanged, spreadsheetUrl }: Props
         <div
           className="absolute right-0 bottom-full mb-1.5 bg-white rounded-lg shadow-lg border border-border py-1 min-w-[200px] z-50"
         >
+          {cities.length > 1 && (
+            <>
+              <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5" />
+                City
+              </div>
+              {activeCity !== null && (
+                <button
+                  onClick={() => { onCityChange(null); setOpen(false); }}
+                  className="flex items-center justify-between w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <span className="pl-5">All cities</span>
+                </button>
+              )}
+              {cities.map((city) => (
+                <button
+                  key={city}
+                  onClick={() => { onCityChange(city); setOpen(false); }}
+                  className="flex items-center justify-between w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5">
+                    {activeCity === city ? (
+                      <Check className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <span className="w-3.5" />
+                    )}
+                    {city}
+                  </span>
+                </button>
+              ))}
+              <hr className="my-1 border-border" />
+            </>
+          )}
           {spreadsheetUrl && (
             <a
               href={spreadsheetUrl}

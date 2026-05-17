@@ -103,7 +103,9 @@ export function App() {
   const [sortMode, setSortMode] = useState<SortMode>(
     () => (localStorage.getItem('places-sort') as SortMode) || 'date',
   );
-  const [activeCity, setActiveCity] = useState<string | null>(null);
+  const [activeCity, setActiveCity] = useState<string | null>(
+    () => localStorage.getItem('places-city'),
+  );
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [hoursFilterMode, setHoursFilterMode] = useState<HoursFilterMode>('off');
@@ -124,6 +126,11 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('places-sort', sortMode);
   }, [sortMode]);
+
+  useEffect(() => {
+    if (activeCity) localStorage.setItem('places-city', activeCity);
+    else localStorage.removeItem('places-city');
+  }, [activeCity]);
 
   useEffect(() => {
     if (!authed) return;
@@ -254,7 +261,7 @@ export function App() {
       visited: newPlace.visited ?? 'no',
       date_added: new Date().toISOString().split('T')[0] ?? '',
       screenshot_url: '',
-      city: newPlace.city || 'Paris',
+      city: newPlace.city || activeCity || 'Paris',
     };
 
     setPlaces((prev) => [place, ...prev]);
@@ -546,7 +553,7 @@ export function App() {
         view={view}
         onChangeView={setView}
         onAdd={() => setShowAdd(true)}
-        trailing={<ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} spreadsheetUrl={spreadsheetUrl} />}
+        trailing={<ToolsMenu onComplete={(msg) => setToast(msg)} onPlacesChanged={refreshPlaces} spreadsheetUrl={spreadsheetUrl} cities={cities} activeCity={activeCity} onCityChange={setActiveCity} />}
       />
     </div>
   );
