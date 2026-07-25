@@ -112,6 +112,8 @@ function withinBounds(b: Bounds, lat: number, lng: number): boolean {
 
 type SortMode = 'date' | 'name' | 'distance';
 
+const DEFAULT_CITY = 'Paris';
+
 export function App() {
   const [authed, setAuthed] = useState(() => !!api.getToken());
   const [places, setPlaces] = useState<Place[]>([]);
@@ -125,8 +127,9 @@ export function App() {
   const [sortMode, setSortMode] = useState<SortMode>(
     () => (localStorage.getItem('places-sort') as SortMode) || 'date',
   );
-  const [activeCity, setActiveCity] = useState<string | null>(
-    () => localStorage.getItem('places-city') ?? 'Paris',
+  // Exactly one city is always selected — there's no "everywhere" state
+  const [activeCity, setActiveCity] = useState<string>(
+    () => localStorage.getItem('places-city') ?? DEFAULT_CITY,
   );
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -153,8 +156,7 @@ export function App() {
   }, [sortMode]);
 
   useEffect(() => {
-    if (activeCity) localStorage.setItem('places-city', activeCity);
-    else localStorage.removeItem('places-city');
+    localStorage.setItem('places-city', activeCity);
   }, [activeCity]);
 
   useEffect(() => {
@@ -181,12 +183,17 @@ export function App() {
     [places],
   );
 
+  // A stored city that no longer has any places would filter everything out
+  // with no chip selected to show why
+  useEffect(() => {
+    if (cities.length === 0 || cities.includes(activeCity)) return;
+    setActiveCity(cities.includes(DEFAULT_CITY) ? DEFAULT_CITY : cities[0]!);
+  }, [cities, activeCity]);
+
   // Where place search should look: the middle of the active city's places,
   // falling back to the user's location when the city has nothing to go on.
   const searchCenter = useMemo(() => {
-    const cityPlaces = activeCity
-      ? places.filter((p) => p.city === activeCity && p.lat && p.lng)
-      : [];
+    const cityPlaces = places.filter((p) => p.city === activeCity && p.lat && p.lng);
     if (!cityPlaces.length) return geo.location;
     return {
       lat: cityPlaces.reduce((sum, p) => sum + Number(p.lat), 0) / cityPlaces.length,
@@ -209,9 +216,7 @@ export function App() {
       result = result.filter((p) => activePriorities.has(Number(p.priority) || 2));
     }
 
-    if (activeCity) {
-      result = result.filter((p) => p.city === activeCity);
-    }
+    result = result.filter((p) => p.city === activeCity);
 
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
@@ -349,7 +354,7 @@ export function App() {
       visited: newPlace.visited ?? 'no',
       date_added: new Date().toISOString().split('T')[0] ?? '',
       screenshot_url: '',
-      city: newPlace.city || activeCity || 'Paris',
+      city: newPlace.city || activeCity,
     };
 
     setPlaces((prev) => [place, ...prev]);
@@ -489,20 +494,10 @@ export function App() {
         <div className="shrink-0 pt-[max(8px,env(safe-area-inset-top))]">
           {cities.length > 1 && (
             <div className="flex gap-1.5 overflow-x-auto py-1.5 px-4">
-              <button
-                onClick={() => setActiveCity(null)}
-                className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
-                  activeCity === null
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
-                }`}
-              >
-                All cities
-              </button>
               {cities.map((city) => (
                 <button
                   key={city}
-                  onClick={() => setActiveCity(activeCity === city ? null : city)}
+                  onClick={() => setActiveCity(city)}
                   className={`px-2.5 py-0.5 rounded-full border text-xs cursor-pointer whitespace-nowrap transition-colors ${
                     activeCity === city
                       ? 'bg-primary text-primary-foreground border-primary'

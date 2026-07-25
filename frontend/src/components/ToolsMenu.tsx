@@ -7,8 +7,8 @@ interface Props {
   onPlacesChanged: () => void;
   spreadsheetUrl: string | null;
   cities: string[];
-  activeCity: string | null;
-  onCityChange: (city: string | null) => void;
+  activeCity: string;
+  onCityChange: (city: string) => void;
 }
 
 export function ToolsMenu({ onComplete, onPlacesChanged, spreadsheetUrl, cities, activeCity, onCityChange }: Props) {
