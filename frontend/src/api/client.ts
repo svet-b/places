@@ -151,7 +151,12 @@ export interface HoursPeriod {
 export interface PlaceHoursInfo {
   openNow: boolean | null;
   periods: HoursPeriod[] | null;
+  alwaysOpen?: boolean;
 }
+
+// The worker makes one Google call per uncached place, so it caps a batch at
+// 50. Stay under that — callers should chunk with HOURS_BATCH_SIZE.
+export const HOURS_BATCH_SIZE = 40;
 
 export function getPlaceHours(placeIds: string[]): Promise<Record<string, PlaceHoursInfo>> {
   return request<Record<string, PlaceHoursInfo>>('/places/hours', {

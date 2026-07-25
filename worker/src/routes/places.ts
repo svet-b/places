@@ -66,8 +66,15 @@ app.post('/places/hours', async (c) => {
   if (!Array.isArray(body.placeIds) || body.placeIds.length === 0) {
     return c.json({ error: 'placeIds array is required' }, 400);
   }
-  const ids = body.placeIds.slice(0, 50);
-  const hours = await getPlaceHours(c.env, ids);
+  // One Google subrequest per uncached place, so the batch has to stay under
+  // the Workers per-request subrequest limit. The client chunks to match; if
+  // something sends more, say so rather than silently dropping the tail.
+  const MAX_IDS = 50;
+  if (body.placeIds.length > MAX_IDS) {
+    console.warn(`hours: ${body.placeIds.length} ids requested, max is ${MAX_IDS}`);
+    return c.json({ error: `Too many placeIds (max ${MAX_IDS})` }, 400);
+  }
+  const hours = await getPlaceHours(c.env, body.placeIds);
   return c.json(hours);
 });
 

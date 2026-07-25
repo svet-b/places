@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Place, NewPlace } from './types';
 import * as api from './api/client';
 
@@ -117,6 +117,8 @@ export function App() {
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
 
   const geo = useGeolocation();
+  // Place IDs already asked for, so re-renders don't refetch them
+  const requestedHoursRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 200);
@@ -203,25 +205,63 @@ export function App() {
     return result;
   }, [places, activeCategories, activePriorities, activeCity, debouncedSearch, activeVisited]);
 
-  // Fetch place hours when filter is activated
+  // Fetch place hours when filter is activated. Requests are chunked to the
+  // worker's batch limit; anything the worker couldn't resolve is dropped from
+  // `requested` so a later pass retries it instead of it silently reading as
+  // "closed" forever.
   useEffect(() => {
     if (hoursFilterMode === 'off') return;
     const ids = preFilteredPlaces
       .map((p) => p.google_place_id)
-      .filter(Boolean);
+      .filter((id) => id && !requestedHoursRef.current.has(id));
     if (ids.length === 0) return;
 
-    const uncached = ids.filter((id) => !(id in placeHours));
-    if (uncached.length === 0) return;
+    for (const id of ids) requestedHoursRef.current.add(id);
 
+    let cancelled = false;
     setHoursLoading(true);
-    api.getPlaceHours(uncached)
-      .then((hours) => {
-        setPlaceHours((prev) => ({ ...prev, ...hours }));
-      })
-      .catch(() => setToast('Failed to check opening hours'))
-      .finally(() => setHoursLoading(false));
+
+    (async () => {
+      let unresolved = 0;
+      for (let i = 0; i < ids.length; i += api.HOURS_BATCH_SIZE) {
+        const chunk = ids.slice(i, i + api.HOURS_BATCH_SIZE);
+        try {
+          const hours = await api.getPlaceHours(chunk);
+          if (cancelled) return;
+          // Show each chunk as it lands rather than waiting for the whole set
+          setPlaceHours((prev) => ({ ...prev, ...hours }));
+          const missing = chunk.filter((id) => !(id in hours));
+          for (const id of missing) requestedHoursRef.current.delete(id);
+          unresolved += missing.length;
+        } catch {
+          if (cancelled) return;
+          for (const id of chunk) requestedHoursRef.current.delete(id);
+          unresolved += chunk.length;
+        }
+      }
+      if (!cancelled && unresolved > 0) {
+        setToast(
+          unresolved === 1
+            ? "Couldn't check hours for 1 place"
+            : `Couldn't check hours for ${unresolved} places`,
+        );
+      }
+    })().finally(() => {
+      if (!cancelled) setHoursLoading(false);
+    });
+
+    return () => { cancelled = true; };
   }, [hoursFilterMode, preFilteredPlaces]);
+
+  // "Open now" is time-sensitive: re-enabling it discards hours fetched earlier
+  // in the session so the answer isn't hours out of date.
+  const handleHoursModeChange = useCallback((mode: HoursFilterMode) => {
+    setHoursFilterMode(mode);
+    if (mode === 'now') {
+      requestedHoursRef.current.clear();
+      setPlaceHours({});
+    }
+  }, []);
 
   const filteredPlaces = useMemo(() => {
     let result = preFilteredPlaces;
@@ -235,7 +275,9 @@ export function App() {
       result = result.filter((p) => {
         if (!p.google_place_id) return false;
         const info = placeHours[p.google_place_id];
-        if (!info?.periods) return false;
+        if (!info) return false;
+        if (info.alwaysOpen) return true;
+        if (!info.periods) return false;
         return isOpenAtTime(info.periods, hoursDateTime);
       });
     }
@@ -444,10 +486,7 @@ export function App() {
             <OpenHoursFilter
               variant="floating"
               mode={hoursFilterMode}
-              onChangeMode={(mode) => {
-                setHoursFilterMode(mode);
-                if (mode === 'now') setPlaceHours({});
-              }}
+              onChangeMode={handleHoursModeChange}
               selectedDateTime={hoursDateTime}
               onChangeDateTime={setHoursDateTime}
               loading={hoursLoading}
@@ -509,10 +548,7 @@ export function App() {
             <OpenHoursFilter
               variant="floating"
               mode={hoursFilterMode}
-              onChangeMode={(mode) => {
-                setHoursFilterMode(mode);
-                if (mode === 'now') setPlaceHours({});
-              }}
+              onChangeMode={handleHoursModeChange}
               selectedDateTime={hoursDateTime}
               onChangeDateTime={setHoursDateTime}
               loading={hoursLoading}

@@ -68,13 +68,65 @@ export interface HoursPeriod {
 export interface PlaceHoursInfo {
   openNow: boolean | null;
   periods: HoursPeriod[] | null;
+  // Google reports a 24/7 place as a single period with no close time, which
+  // no list of periods can express — flag it instead.
+  alwaysOpen?: boolean;
 }
 
 // Separate caches with different TTLs
 const openNowCache = new Map<string, { openNow: boolean | null; fetchedAt: number }>();
-const periodsCache = new Map<string, { periods: HoursPeriod[] | null; fetchedAt: number }>();
+const periodsCache = new Map<string, { periods: HoursPeriod[] | null; alwaysOpen: boolean; fetchedAt: number }>();
 const OPEN_NOW_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const PERIODS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+type HoursFetch =
+  | { status: 'ok'; openNow: boolean | null; periods: HoursPeriod[] | null; alwaysOpen: boolean }
+  // Google answered, but has no hours for this place (or the id is stale) — a
+  // real answer, safe to cache.
+  | { status: 'no-data' }
+  // Transient: rate limit, 5xx, network. Must NOT be cached as "no hours",
+  // otherwise one blip hides an open place for the rest of the TTL.
+  | { status: 'failed' };
+
+async function fetchHours(env: Env, placeId: string): Promise<HoursFetch> {
+  let resp: Response;
+  try {
+    resp = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+      headers: {
+        'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
+        'X-Goog-FieldMask': 'currentOpeningHours.openNow,regularOpeningHours.periods',
+      },
+    });
+  } catch (e) {
+    console.error(`hours: network error for ${placeId}`, e);
+    return { status: 'failed' };
+  }
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    console.error(`hours: ${resp.status} for ${placeId} ${body.slice(0, 200)}`);
+    return resp.status === 429 || resp.status >= 500 ? { status: 'failed' } : { status: 'no-data' };
+  }
+
+  try {
+    const data = (await resp.json()) as {
+      currentOpeningHours?: { openNow?: boolean };
+      regularOpeningHours?: {
+        periods?: { open: { day: number; hour: number; minute: number }; close?: { day: number; hour: number; minute: number } }[];
+      };
+    };
+    const rawPeriods = data.regularOpeningHours?.periods;
+    return {
+      status: 'ok',
+      openNow: data.currentOpeningHours?.openNow ?? null,
+      periods: rawPeriods?.filter((p): p is HoursPeriod => !!p.close) ?? null,
+      alwaysOpen: !!rawPeriods?.some((p) => !p.close),
+    };
+  } catch (e) {
+    console.error(`hours: bad response body for ${placeId}`, e);
+    return { status: 'failed' };
+  }
+}
 
 export async function getPlaceHours(
   env: Env,
@@ -92,7 +144,11 @@ export async function getPlaceHours(
     const periodsValid = cachedPeriods && now - cachedPeriods.fetchedAt < PERIODS_TTL_MS;
 
     if (nowValid && periodsValid) {
-      result[id] = { openNow: cachedNow.openNow, periods: cachedPeriods.periods };
+      result[id] = {
+        openNow: cachedNow.openNow,
+        periods: cachedPeriods.periods,
+        alwaysOpen: cachedPeriods.alwaysOpen,
+      };
     } else {
       if (!nowValid) toFetchOpenNow.push(id);
       if (!periodsValid) toFetchPeriods.push(id);
@@ -106,55 +162,34 @@ export async function getPlaceHours(
   for (let i = 0; i < toFetch.length; i += batchSize) {
     const batch = toFetch.slice(i, i + batchSize);
     const results = await Promise.all(
-      batch.map(async (placeId) => {
-        try {
-          const resp = await fetch(
-            `https://places.googleapis.com/v1/places/${placeId}`,
-            {
-              headers: {
-                'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
-                'X-Goog-FieldMask': 'currentOpeningHours.openNow,regularOpeningHours.periods',
-              },
-            },
-          );
-          if (!resp.ok) return { placeId, openNow: null as boolean | null, periods: null as HoursPeriod[] | null };
-          const data = (await resp.json()) as {
-            currentOpeningHours?: { openNow?: boolean };
-            regularOpeningHours?: {
-              periods?: { open: { day: number; hour: number; minute: number }; close?: { day: number; hour: number; minute: number } }[];
-            };
-          };
-          const openNow = data.currentOpeningHours?.openNow ?? null;
-          const periods: HoursPeriod[] | null = data.regularOpeningHours?.periods
-            ?.filter((p): p is { open: { day: number; hour: number; minute: number }; close: { day: number; hour: number; minute: number } } => !!p.close)
-            ?? null;
-          return { placeId, openNow, periods };
-        } catch {
-          return { placeId, openNow: null as boolean | null, periods: null as HoursPeriod[] | null };
-        }
-      }),
+      batch.map(async (placeId) => ({ placeId, fetched: await fetchHours(env, placeId) })),
     );
-    for (const { placeId, openNow, periods } of results) {
-      openNowCache.set(placeId, { openNow, fetchedAt: now });
-      periodsCache.set(placeId, { periods, fetchedAt: now });
-
-      // Merge with any existing cached data
-      const existingNow = openNowCache.get(placeId)!;
-      const existingPeriods = periodsCache.get(placeId)!;
-      result[placeId] = { openNow: existingNow.openNow, periods: existingPeriods.periods };
+    for (const { placeId, fetched } of results) {
+      if (fetched.status === 'ok') {
+        openNowCache.set(placeId, { openNow: fetched.openNow, fetchedAt: now });
+        periodsCache.set(placeId, { periods: fetched.periods, alwaysOpen: fetched.alwaysOpen, fetchedAt: now });
+      } else if (fetched.status === 'no-data') {
+        openNowCache.set(placeId, { openNow: null, fetchedAt: now });
+        periodsCache.set(placeId, { periods: null, alwaysOpen: false, fetchedAt: now });
+      }
+      // 'failed' leaves the cache untouched, so the next request retries and
+      // any previously fetched (stale) hours below are still served.
     }
   }
 
-  // Fill in any IDs that had partial cache hits
+  // Fill in IDs still missing: partial cache hits, and anything whose refresh
+  // failed but that we have older data for. IDs we know nothing about are left
+  // out entirely — the client shows them as unknown rather than as closed.
   for (const id of placeIds) {
-    if (!result[id]) {
-      const cachedNow = openNowCache.get(id);
-      const cachedPeriods = periodsCache.get(id);
-      result[id] = {
-        openNow: cachedNow?.openNow ?? null,
-        periods: cachedPeriods?.periods ?? null,
-      };
-    }
+    if (result[id]) continue;
+    const cachedNow = openNowCache.get(id);
+    const cachedPeriods = periodsCache.get(id);
+    if (!cachedNow && !cachedPeriods) continue;
+    result[id] = {
+      openNow: cachedNow?.openNow ?? null,
+      periods: cachedPeriods?.periods ?? null,
+      alwaysOpen: cachedPeriods?.alwaysOpen ?? false,
+    };
   }
 
   return result;
