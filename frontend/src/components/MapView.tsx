@@ -22,6 +22,8 @@ export function MapView({ places, userLocation, onSelectPlace, onViewportChange 
   const pinsRef = useRef<{ container: HTMLDivElement; pin: HTMLDivElement; label: HTMLDivElement }[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const LABEL_VISIBILITY_THRESHOLD = 35;
+  // Tap target around the dot; also fixes where the dot's centre sits
+  const HIT_SIZE = 44;
 
   // Held in a ref so a changing callback identity doesn't re-register listeners
   const onViewportChangeRef = useRef(onViewportChange);
@@ -104,12 +106,16 @@ export function MapView({ places, userLocation, onSelectPlace, onViewportChange 
     const size = Math.max(12, Math.min(20, 8 + (zoom - 10) * (8 / 6)));
     const border = Math.max(1.5, Math.min(2.5, 1.0 + (zoom - 10) * (1 / 6)));
     const px = `${Math.round(size)}px`;
-    const labelTop = `${Math.round(size / 2) + 26}px`;
+    // Pull the label up out of the tap target's dead space, so it keeps sitting
+    // just under the dot as the dot shrinks. The anchor doesn't move: it only
+    // depends on the dot's centre, which the tap target holds fixed.
+    const halfDot = (Math.round(size) + 2 * border) / 2;
+    const labelMargin = `${(halfDot - HIT_SIZE / 2 + 2).toFixed(2)}px`;
     for (const { pin, label } of pinsRef.current) {
       pin.style.width = px;
       pin.style.height = px;
       pin.style.borderWidth = `${border.toFixed(1)}px`;
-      label.style.top = labelTop;
+      label.style.marginTop = labelMargin;
     }
   }, []);
 
@@ -128,19 +134,34 @@ export function MapView({ places, userLocation, onSelectPlace, onViewportChange 
     for (const place of filtered) {
       const catColor = (CATEGORY_MAP[place.category] ?? CATEGORY_MAP['other']!).color;
 
+      // AdvancedMarkerElement anchors custom content by its bottom centre, and
+      // the label is part of that content — so the dot never sat on the
+      // coordinates. Everything here is laid out in normal flow (nothing
+      // absolute, nothing overflowing) so the box the marker measures is
+      // exactly the box you can see, then the whole thing is shifted down by
+      // its height less HIT_SIZE/2. The dot's centre is always HIT_SIZE/2 from
+      // the top, so that puts the dot on the position — at any zoom, label
+      // shown or hidden.
       const container = document.createElement('div');
       container.style.position = 'relative';
-      container.style.width = '44px';
-      container.style.height = '44px';
       container.style.cursor = 'pointer';
       container.style.display = 'flex';
+      container.style.flexDirection = 'column';
       container.style.alignItems = 'center';
-      container.style.justifyContent = 'center';
-      // AdvancedMarkerElement pins custom content by its bottom centre, which
-      // would leave the dot half a container above the coordinates — a fixed
-      // pixel offset, so it covers more ground the further you zoom out. Push
-      // the content down by half its height to put the dot on the position.
-      container.style.transform = 'translateY(50%)';
+      container.style.transform = `translateY(calc(100% - ${HIT_SIZE / 2}px))`;
+      // Only the dot's hit area should take clicks; the label must not swallow
+      // taps meant for a neighbouring pin
+      container.style.pointerEvents = 'none';
+
+      // Fixed-size tap target, so the dot's centre stays put as it resizes
+      const hit = document.createElement('div');
+      hit.style.width = `${HIT_SIZE}px`;
+      hit.style.height = `${HIT_SIZE}px`;
+      hit.style.flexShrink = '0';
+      hit.style.display = 'flex';
+      hit.style.alignItems = 'center';
+      hit.style.justifyContent = 'center';
+      hit.style.pointerEvents = 'auto';
 
       const visitedStatus = (place.visited ?? '').toLowerCase();
       const fadedFill = `${catColor}66`;
@@ -158,10 +179,7 @@ export function MapView({ places, userLocation, onSelectPlace, onViewportChange 
 
       const label = document.createElement('div');
       label.textContent = place.name;
-      label.style.position = 'absolute';
-      label.style.top = '34px';
-      label.style.left = '50%';
-      label.style.transform = 'translateX(-50%)';
+      label.style.marginTop = '2px';
       label.style.fontSize = '12.5px';
       label.style.fontWeight = '600';
       label.style.color = '#1a1a1a';
@@ -175,7 +193,8 @@ export function MapView({ places, userLocation, onSelectPlace, onViewportChange 
       label.style.pointerEvents = 'none';
       label.style.boxShadow = '0 1px 3px rgba(0,0,0,0.15)';
 
-      container.appendChild(pin);
+      hit.appendChild(pin);
+      container.appendChild(hit);
       container.appendChild(label);
       labelsRef.current.push(label);
       pinsRef.current.push({ container, pin, label });
