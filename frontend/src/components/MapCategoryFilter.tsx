@@ -43,6 +43,10 @@ export function MapCategoryFilter({ activeCategories, onToggle, onSetAll }: Prop
 
   const hasActive = activeCategories.size > 0;
   const allActive = activeCategories.size === CATEGORIES.length;
+  // Nothing selected means an empty map — outline the chip so it doesn't read
+  // as "no places found". Once the list is open the point has been made, so
+  // drop it; it comes back if they close the list still having picked nothing.
+  const needsAttention = !hasActive && !expanded;
 
   // Use the single category's icon when exactly one is selected
   const singleCatId = activeCategories.size === 1 ? [...activeCategories][0] : null;
@@ -57,11 +61,9 @@ export function MapCategoryFilter({ activeCategories, onToggle, onSetAll }: Prop
         className="flex items-center gap-1.5 h-8 px-2.5 rounded-full shadow-md border cursor-pointer transition-all"
         style={{
           background: '#fff',
-          // Nothing selected means an empty map — outline the filter so it
-          // doesn't read as "no places found"
-          borderColor: !hasActive ? '#f59e0b' : allActive ? '#e5e5e5' : '#333',
+          borderColor: needsAttention ? '#f59e0b' : hasActive && !allActive ? '#333' : '#e5e5e5',
           color: hasActive ? '#333' : '#666',
-          boxShadow: hasActive ? undefined : '0 0 0 3px rgba(245,158,11,0.55)',
+          boxShadow: needsAttention ? '0 0 0 3px rgba(245,158,11,0.55)' : undefined,
         }}
       >
         <IconComponent className="h-3.5 w-3.5" style={iconColor ? { color: iconColor } : undefined} />
