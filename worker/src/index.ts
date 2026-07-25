@@ -14,6 +14,8 @@ export type Env = {
   GOOGLE_PLACES_API_KEY: string;
   GOOGLE_MAPS_KEY: string;
   SCREENSHOTS_BUCKET: R2Bucket;
+  // Only ever set by `wrangler dev --var DEV_NO_AUTH:1`
+  DEV_NO_AUTH?: string;
 };
 
 const ALLOWED_ORIGINS = [

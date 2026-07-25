@@ -60,6 +60,13 @@ export async function verifyJwt(env: Env, token: string): Promise<boolean> {
 }
 
 export async function authMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
+  // Local development only: set via `wrangler dev --var DEV_NO_AUTH:1`. Never
+  // configured as a deployed secret or var, so production always authenticates.
+  if (c.env.DEV_NO_AUTH === '1') {
+    await next();
+    return;
+  }
+
   const header = c.req.header('Authorization');
   if (!header) {
     return c.json({ error: 'Unauthorized' }, 401);
