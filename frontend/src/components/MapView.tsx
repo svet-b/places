@@ -136,6 +136,11 @@ export function MapView({ places, userLocation, onSelectPlace, onViewportChange 
       container.style.display = 'flex';
       container.style.alignItems = 'center';
       container.style.justifyContent = 'center';
+      // AdvancedMarkerElement pins custom content by its bottom centre, which
+      // would leave the dot half a container above the coordinates — a fixed
+      // pixel offset, so it covers more ground the further you zoom out. Push
+      // the content down by half its height to put the dot on the position.
+      container.style.transform = 'translateY(50%)';
 
       const visitedStatus = (place.visited ?? '').toLowerCase();
       const fadedFill = `${catColor}66`;
@@ -279,6 +284,8 @@ export function MapView({ places, userLocation, onSelectPlace, onViewportChange 
     dot.style.background = '#4285F4';
     dot.style.border = '3px solid #fff';
     dot.style.boxShadow = '0 0 6px rgba(66,133,244,0.5)';
+    // Centre the dot on the position rather than sitting it on top (see above)
+    dot.style.transform = 'translateY(50%)';
 
     const marker = new google.maps.marker.AdvancedMarkerElement({
       map,
