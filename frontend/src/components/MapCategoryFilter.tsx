@@ -56,12 +56,12 @@ export function MapCategoryFilter({ activeCategories, onToggle, onSetAll }: Prop
         onClick={() => setExpanded((prev) => !prev)}
         className="flex items-center gap-1.5 h-8 px-2.5 rounded-full shadow-md border cursor-pointer transition-all"
         style={{
-          background: hasActive ? '#fff' : '#fffbeb',
+          background: '#fff',
+          // Nothing selected means an empty map — outline the filter so it
+          // doesn't read as "no places found"
           borderColor: !hasActive ? '#f59e0b' : allActive ? '#e5e5e5' : '#333',
-          color: hasActive ? '#333' : '#b45309',
-          // Nothing selected means an empty map — call attention to the filter
-          // rather than letting it read as "no places found"
-          boxShadow: hasActive ? undefined : '0 0 0 3px rgba(245,158,11,0.35)',
+          color: hasActive ? '#333' : '#666',
+          boxShadow: hasActive ? undefined : '0 0 0 3px rgba(245,158,11,0.55)',
         }}
       >
         <IconComponent className="h-3.5 w-3.5" style={iconColor ? { color: iconColor } : undefined} />
