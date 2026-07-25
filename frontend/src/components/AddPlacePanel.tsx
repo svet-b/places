@@ -14,7 +14,24 @@ interface Props {
   onCancel: () => void;
   mapsLoaded: boolean;
   places: Place[];
+  searchCenter: { lat: number; lng: number } | null;
+  activeCity: string | null;
   onViewExisting: (place: Place) => void;
+}
+
+// Search is biased towards the active city and its surroundings, not hard-limited
+// to them — a place just outside still turns up, it just ranks lower.
+const SEARCH_BIAS_RADIUS_KM = 50;
+
+function biasBounds(center: { lat: number; lng: number }): google.maps.LatLngBoundsLiteral {
+  const latDelta = SEARCH_BIAS_RADIUS_KM / 111;
+  const lngDelta = latDelta / Math.max(Math.cos((center.lat * Math.PI) / 180), 0.01);
+  return {
+    north: center.lat + latDelta,
+    south: center.lat - latDelta,
+    east: center.lng + lngDelta,
+    west: center.lng - lngDelta,
+  };
 }
 
 async function compressImage(file: File, maxSize = 1200): Promise<string> {
@@ -83,7 +100,7 @@ function isInstagramUrl(url: string): boolean {
 }
 
 
-export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewExisting }: Props) {
+export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, searchCenter, activeCity, onViewExisting }: Props) {
   const [identity, setIdentity] = useState<PlaceIdentity | null>(null);
   const [duplicatePlace, setDuplicatePlace] = useState<Place | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -122,7 +139,6 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
     const ac = new google.maps.places.Autocomplete(searchInputRef.current, {
       types: ['establishment'],
       fields: ['formatted_address', 'geometry', 'place_id', 'name', 'address_components', 'url', 'types'],
-      componentRestrictions: { country: 'fr' },
     });
 
     ac.addListener('place_changed', () => {
@@ -140,7 +156,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
         lng: place.geometry.location.lng(),
         google_place_id: place.place_id ?? '',
         google_maps_url: place.url ?? '',
-        city: cityComp?.long_name ?? 'Paris',
+        city: cityComp?.long_name ?? '',
       });
 
       // Map Google type to our category
@@ -153,6 +169,11 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
 
     autocompleteRef.current = ac;
   }, [mapsLoaded]);
+
+  useEffect(() => {
+    if (!autocompleteRef.current || !searchCenter) return;
+    autocompleteRef.current.setBounds(biasBounds(searchCenter));
+  }, [mapsLoaded, searchCenter]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -171,7 +192,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
     setAnalyzing(true);
     setError(null);
     try {
-      const result = await api.analyzeScreenshot(imageBase64);
+      const result = await api.analyzeScreenshot(imageBase64, activeCity ?? undefined);
       const m = result.merged;
       setIdentityWithDupeCheck({
         name: m.name,
@@ -180,7 +201,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
         lng: m.lng,
         google_place_id: m.google_place_id,
         google_maps_url: m.google_maps_url,
-        city: m.city || 'Paris',
+        city: m.city,
       });
       if (m.category) setCategory(m.category);
       if (m.source) setSource(m.source);
@@ -199,7 +220,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
     setError(null);
     try {
       if (isInstagramUrl(url)) {
-        const result = await api.analyzeInstagram(url);
+        const result = await api.analyzeInstagram(url, activeCity ?? undefined);
         const m = result.merged;
         setIdentityWithDupeCheck({
           name: m.name,
@@ -208,7 +229,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
           lng: m.lng,
           google_place_id: m.google_place_id,
           google_maps_url: m.google_maps_url,
-          city: m.city || 'Paris',
+          city: m.city,
         });
         if (m.category) setCategory(m.category);
         if (m.source) setSource(m.source);
@@ -222,7 +243,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
           lng: resolved.lng,
           google_place_id: resolved.google_place_id,
           google_maps_url: resolved.google_maps_url,
-          city: resolved.city || 'Paris',
+          city: resolved.city,
         });
         const mapped = mapGoogleTypeToCategory(resolved.primary_type);
         if (mapped) setCategory(mapped);
@@ -242,7 +263,7 @@ export function AddPlacePanel({ onSubmit, onCancel, mapsLoaded, places, onViewEx
         category,
         cuisine,
         address: identity.address,
-        city: identity.city || 'Paris',
+        city: identity.city,
         lat: identity.lat,
         lng: identity.lng,
         google_place_id: identity.google_place_id,

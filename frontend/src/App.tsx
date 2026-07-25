@@ -43,7 +43,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="h-full flex items-center justify-center bg-muted">
       <form onSubmit={handleSubmit} className="bg-background p-8 rounded-2xl shadow-lg w-[300px] text-center">
-        <h1 className="text-2xl font-semibold mb-6">Places</h1>
+        <h1 className="text-2xl font-semibold mb-6">Mari&rsquo;s list</h1>
         <Input
           type="password"
           value={password}
@@ -155,6 +155,19 @@ export function App() {
     () => [...new Set(places.map((p) => p.city).filter(Boolean))].sort(),
     [places],
   );
+
+  // Where place search should look: the middle of the active city's places,
+  // falling back to the user's location when the city has nothing to go on.
+  const searchCenter = useMemo(() => {
+    const cityPlaces = activeCity
+      ? places.filter((p) => p.city === activeCity && p.lat && p.lng)
+      : [];
+    if (!cityPlaces.length) return geo.location;
+    return {
+      lat: cityPlaces.reduce((sum, p) => sum + Number(p.lat), 0) / cityPlaces.length,
+      lng: cityPlaces.reduce((sum, p) => sum + Number(p.lng), 0) / cityPlaces.length,
+    };
+  }, [places, activeCity, geo.location]);
 
   // Places before open-now filtering (used to determine which IDs to query)
   const preFilteredPlaces = useMemo(() => {
@@ -453,6 +466,8 @@ export function App() {
             onCancel={() => setShowAdd(false)}
             mapsLoaded={mapsLoaded}
             places={places}
+            searchCenter={searchCenter}
+            activeCity={activeCity}
             onViewExisting={(place) => {
               setShowAdd(false);
               setSelectedPlace(place);

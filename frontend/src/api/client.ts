@@ -109,17 +109,19 @@ export interface AnalyzeResult {
   };
 }
 
-export function analyzeInstagram(url: string): Promise<AnalyzeResult> {
+// `city` is a hint for place resolution, used when the post/screenshot itself
+// doesn't say which city the place is in.
+export function analyzeInstagram(url: string, city?: string): Promise<AnalyzeResult> {
   return request<AnalyzeResult>('/analyze-instagram', {
     method: 'POST',
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, city }),
   });
 }
 
-export function analyzeScreenshot(imageBase64: string): Promise<AnalyzeResult> {
+export function analyzeScreenshot(imageBase64: string, city?: string): Promise<AnalyzeResult> {
   return request<AnalyzeResult>('/analyze-screenshot', {
     method: 'POST',
-    body: JSON.stringify({ image: imageBase64 }),
+    body: JSON.stringify({ image: imageBase64, city }),
   });
 }
 
