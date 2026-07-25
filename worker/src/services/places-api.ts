@@ -11,43 +11,21 @@ interface ResolvedPlace {
   primary_type?: string;
 }
 
-export async function resolvePlace(env: Env, name: string, city?: string): Promise<ResolvedPlace | null> {
-  const query = city ? `${name} ${city}` : name;
+interface RawPlace {
+  displayName: { text: string };
+  formattedAddress: string;
+  location: { latitude: number; longitude: number };
+  id: string;
+  googleMapsUri: string;
+  addressComponents?: { types: string[]; longText: string }[];
+  primaryType?: string;
+}
 
-  const resp = await fetch('https://places.googleapis.com/v1/places:searchText', {
-    method: 'POST',
-    headers: {
-      'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
-      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.id,places.googleMapsUri,places.addressComponents,places.primaryType',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ textQuery: query }),
-  });
+const PLACE_FIELDS =
+  'places.displayName,places.formattedAddress,places.location,places.id,places.googleMapsUri,places.addressComponents,places.primaryType';
 
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`Places API error: ${resp.status} ${text}`);
-  }
-
-  const data = (await resp.json()) as {
-    places?: {
-      displayName: { text: string };
-      formattedAddress: string;
-      location: { latitude: number; longitude: number };
-      id: string;
-      googleMapsUri: string;
-      addressComponents?: { types: string[]; longText: string }[];
-      primaryType?: string;
-    }[];
-  };
-
-  const place = data.places?.[0];
-  if (!place) return null;
-
-  const cityComponent = place.addressComponents?.find(
-    (c) => c.types.includes('locality'),
-  );
-
+function toResolvedPlace(place: RawPlace, fallbackCity?: string): ResolvedPlace {
+  const cityComponent = place.addressComponents?.find((c) => c.types.includes('locality'));
   return {
     name: place.displayName.text,
     address: place.formattedAddress,
@@ -55,9 +33,56 @@ export async function resolvePlace(env: Env, name: string, city?: string): Promi
     lng: place.location.longitude,
     google_place_id: place.id,
     google_maps_url: place.googleMapsUri,
-    city: cityComponent?.longText ?? city ?? '',
+    city: cityComponent?.longText ?? fallbackCity ?? '',
     primary_type: place.primaryType,
   };
+}
+
+async function placesRequest(env: Env, endpoint: string, body: unknown): Promise<RawPlace | null> {
+  const resp = await fetch(`https://places.googleapis.com/v1/places:${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
+      'X-Goog-FieldMask': PLACE_FIELDS,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Places API error: ${resp.status} ${text}`);
+  }
+
+  const data = (await resp.json()) as { places?: RawPlace[] };
+  return data.places?.[0] ?? null;
+}
+
+export async function resolvePlace(
+  env: Env,
+  name: string,
+  city?: string,
+  near?: { lat: number; lng: number },
+): Promise<ResolvedPlace | null> {
+  // Coordinates from the source beat a city name: they disambiguate chains and
+  // places whose city we guessed wrong.
+  const body: Record<string, unknown> = { textQuery: near ? name : city ? `${name} ${city}` : name };
+  if (near) {
+    body.locationBias = { circle: { center: { latitude: near.lat, longitude: near.lng }, radius: 2000 } };
+  }
+
+  const place = await placesRequest(env, 'searchText', body);
+  return place ? toResolvedPlace(place, city) : null;
+}
+
+// Used when a Maps URL gives us a pin but no usable name
+async function resolveNearby(env: Env, lat: number, lng: number, radius: number): Promise<ResolvedPlace | null> {
+  const place = await placesRequest(env, 'searchNearby', {
+    locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius } },
+    rankPreference: 'DISTANCE',
+    maxResultCount: 1,
+  });
+  return place ? toResolvedPlace(place) : null;
 }
 
 export interface HoursPeriod {
@@ -195,53 +220,138 @@ export async function getPlaceHours(
   return result;
 }
 
-export async function resolveMapsUrl(env: Env, url: string): Promise<ResolvedPlace | null> {
-  // Follow redirects to get the final URL (handles maps.app.goo.gl short links)
-  let finalUrl = url;
-  if (url.includes('goo.gl') || url.includes('maps.app')) {
-    const resp = await fetch(url, { redirect: 'follow' });
-    finalUrl = resp.url;
+// maps.app.goo.gl serves a desktop browser an interstitial page (HTTP 200) and
+// only redirects for other clients, so don't claim to be a desktop browser.
+// These links are shared from the phone app; ask as the phone app's platform.
+const SHORTLINK_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+// Every URL in the redirect chain, first to last. The useful details are spread
+// across hops: the ?q= name arrives on the first redirect, coordinates often
+// only on a later one.
+async function expandUrl(url: string, maxHops = 5): Promise<string[]> {
+  const chain = [url];
+  let current = url;
+  for (let hop = 0; hop < maxHops; hop++) {
+    const resp = await fetch(current, {
+      redirect: 'manual',
+      headers: { 'User-Agent': SHORTLINK_UA, 'Accept-Language': 'en-US,en;q=0.9' },
+    });
+    const location = resp.headers.get('location');
+    if (!location) break;
+    current = new URL(location, current).toString();
+    chain.push(current);
   }
+  return chain;
+}
 
-  // Try to extract a place name or search query from the URL
-  let searchQuery = '';
+// A shared pin's ?q= is "<name>, <descriptive address>/<postal address>", which
+// matches nothing as a single text query. Try the parts that stand a chance.
+function queriesFromQ(q: string): string[] {
+  const queries: string[] = [];
+  const slash = q.indexOf('/');
+  if (slash !== -1) {
+    const name = q.slice(0, slash).split(',')[0]!.trim();
+    const address = q.slice(slash + 1).trim();
+    if (name && address) queries.push(`${name}, ${address}`);
+  }
+  queries.push(q);
+  return queries;
+}
 
-  // Check for ?q= parameter (common in short link redirects)
+interface MapsUrlHints {
+  queries: string[];
+  lat?: number;
+  lng?: number;
+}
+
+function parseMapsUrl(url: string): MapsUrlHints {
+  const hints: MapsUrlHints = { queries: [] };
+
   try {
-    const parsed = new URL(finalUrl);
-    const qParam = parsed.searchParams.get('q');
-    if (qParam) {
-      searchQuery = qParam;
+    const q = new URL(url).searchParams.get('q');
+    if (q) {
+      const asCoords = q.match(/^\s*(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\s*$/);
+      if (asCoords) {
+        hints.lat = Number(asCoords[1]);
+        hints.lng = Number(asCoords[2]);
+      } else {
+        hints.queries.push(...queriesFromQ(q));
+      }
     }
   } catch {
-    // not a valid URL, continue with regex
+    // Not a parseable URL — fall through to the regexes
   }
 
-  // URLs like: /place/Place+Name/...
-  if (!searchQuery) {
-    const placeMatch = finalUrl.match(/\/place\/([^/@]+)/);
-    if (placeMatch) {
-      searchQuery = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+  // /place/Place+Name/... — often empty (/place//data=...) on shortened links
+  const placeMatch = url.match(/\/place\/([^/@?]+)/);
+  if (placeMatch && placeMatch[1] !== 'unnamed') {
+    hints.queries.push(decodeURIComponent(placeMatch[1]!.replace(/\+/g, ' ')));
+  }
+
+  const searchMatch = url.match(/\/search\/([^/@?]+)/);
+  if (searchMatch) {
+    hints.queries.push(decodeURIComponent(searchMatch[1]!.replace(/\+/g, ' ')));
+  }
+
+  // !3d/!4d is the pin itself; @lat,lng is only where the camera happened to
+  // be, so prefer the former.
+  const pin = url.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  const camera = url.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  const coords = pin ?? camera;
+  if (coords && hints.lat === undefined) {
+    hints.lat = Number(coords[1]);
+    hints.lng = Number(coords[2]);
+  }
+
+  return hints;
+}
+
+function isShortLink(url: string): boolean {
+  try {
+    return /(^|\.)(goo\.gl|g\.co)$/.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+export async function resolveMapsUrl(env: Env, url: string): Promise<ResolvedPlace | null> {
+  // A full maps.google.com URL already carries everything we can learn
+  const chain = isShortLink(url) ? await expandUrl(url) : [url];
+
+  const queries: string[] = [];
+  let lat: number | undefined;
+  let lng: number | undefined;
+  for (const hop of chain) {
+    const hints = parseMapsUrl(hop);
+    for (const q of hints.queries) if (!queries.includes(q)) queries.push(q);
+    if (lat === undefined && hints.lat !== undefined) {
+      lat = hints.lat;
+      lng = hints.lng;
     }
   }
 
-  // URLs like: /search/query/...
-  if (!searchQuery) {
-    const searchMatch = finalUrl.match(/\/search\/([^/@]+)/);
-    if (searchMatch) {
-      searchQuery = decodeURIComponent(searchMatch[1].replace(/\+/g, ' '));
+  console.log(`resolve-url: ${url} -> ${chain[chain.length - 1]} at=${lat ?? '-'},${lng ?? '-'} queries=${JSON.stringify(queries)}`);
+
+  const near = lat !== undefined && lng !== undefined ? { lat, lng: lng! } : undefined;
+
+  for (const query of queries) {
+    const byName = await resolvePlace(env, query, undefined, near);
+    if (byName) return byName;
+  }
+
+  // Nothing matched by name, but a pin's coordinates are exact: take the
+  // nearest establishment, widening once if need be.
+  if (near) {
+    for (const radius of [40, 150]) {
+      const byLocation = await resolveNearby(env, near.lat, near.lng, radius);
+      if (byLocation) return byLocation;
     }
   }
 
-  // Try to extract coordinates as fallback
-  const coordMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (!searchQuery && coordMatch) {
-    searchQuery = `${coordMatch[1]},${coordMatch[2]}`;
+  if (queries.length === 0 && !near) {
+    throw new Error("That link didn't contain a place — try opening it and sharing the full URL");
   }
 
-  if (!searchQuery) {
-    searchQuery = url;
-  }
-
-  return resolvePlace(env, searchQuery);
+  return null;
 }

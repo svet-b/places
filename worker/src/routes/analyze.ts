@@ -133,12 +133,12 @@ app.post('/resolve-url', async (c) => {
   try {
     const resolved = await resolveMapsUrl(c.env, body.url);
     if (!resolved) {
-      return c.json({ error: 'Could not resolve URL' }, 404);
+      return c.json({ error: 'Google has no place at that link' }, 404);
     }
     return c.json(resolved);
   } catch (e) {
     console.error('URL resolution failed:', e);
-    return c.json({ error: 'Failed to resolve URL' }, 500);
+    return c.json({ error: e instanceof Error ? e.message : 'Failed to resolve URL' }, 500);
   }
 });
 
