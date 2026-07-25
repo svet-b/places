@@ -6,9 +6,12 @@ interface Props {
   places: Place[];
   userLocation: { lat: number; lng: number } | null;
   onSelectPlace: (place: Place) => void;
+  // Fired when panning/zooming settles, so callers can scope work (e.g.
+  // fetching opening hours) to what's actually on screen.
+  onViewportChange?: (bounds: google.maps.LatLngBoundsLiteral | null) => void;
 }
 
-export function MapView({ places, userLocation, onSelectPlace }: Props) {
+export function MapView({ places, userLocation, onSelectPlace, onViewportChange }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -19,6 +22,10 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
   const pinsRef = useRef<{ container: HTMLDivElement; pin: HTMLDivElement; label: HTMLDivElement }[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const LABEL_VISIBILITY_THRESHOLD = 35;
+
+  // Held in a ref so a changing callback identity doesn't re-register listeners
+  const onViewportChangeRef = useRef(onViewportChange);
+  useEffect(() => { onViewportChangeRef.current = onViewportChange; });
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -195,6 +202,7 @@ export function MapView({ places, userLocation, onSelectPlace }: Props) {
     function onZoomOrIdle() {
       updateLabelVisibility();
       updatePinSizes();
+      onViewportChangeRef.current?.(map!.getBounds()?.toJSON() ?? null);
     }
     const zoomListener = map.addListener('zoom_changed', onZoomOrIdle);
     const idleListener = map.addListener('idle', onZoomOrIdle);

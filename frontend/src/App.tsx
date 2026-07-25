@@ -88,6 +88,28 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+type Bounds = google.maps.LatLngBoundsLiteral;
+
+// Grow a viewport by a fraction of its own span on each side
+function padBounds(b: Bounds, factor: number): Bounds {
+  const latPad = (b.north - b.south) * factor;
+  const lngSpan = b.east >= b.west ? b.east - b.west : 360 - b.west + b.east;
+  const lngPad = lngSpan * factor;
+  return {
+    north: Math.min(90, b.north + latPad),
+    south: Math.max(-90, b.south - latPad),
+    east: b.east + lngPad,
+    west: b.west - lngPad,
+  };
+}
+
+function withinBounds(b: Bounds, lat: number, lng: number): boolean {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (lat < b.south || lat > b.north) return false;
+  // East < west when the viewport straddles the antimeridian
+  return b.east >= b.west ? lng >= b.west && lng <= b.east : lng >= b.west || lng <= b.east;
+}
+
 type SortMode = 'date' | 'name' | 'distance';
 
 export function App() {
@@ -115,6 +137,7 @@ export function App() {
   const [activePriorities, setActivePriorities] = useState<Set<number>>(() => new Set([1, 2, 3]));
   const [activeVisited, setActiveVisited] = useState<Set<VisitedStatus>>(() => new Set(['liked', 'notbeen']));
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
+  const [mapViewport, setMapViewport] = useState<Bounds | null>(null);
 
   const geo = useGeolocation();
   // Place IDs already asked for, so re-renders don't refetch them
@@ -205,13 +228,22 @@ export function App() {
     return result;
   }, [places, activeCategories, activePriorities, activeCity, debouncedSearch, activeVisited]);
 
+  // Hours cost one Google call per place, so on the map only ask about places
+  // in view (plus a margin, so panning has something ready). The list has no
+  // viewport to speak of, so it needs the whole filtered set.
+  const hoursCandidates = useMemo(() => {
+    if (view !== 'map' || !mapViewport) return preFilteredPlaces;
+    const bounds = padBounds(mapViewport, 0.25);
+    return preFilteredPlaces.filter((p) => withinBounds(bounds, Number(p.lat), Number(p.lng)));
+  }, [preFilteredPlaces, view, mapViewport]);
+
   // Fetch place hours when filter is activated. Requests are chunked to the
   // worker's batch limit; anything the worker couldn't resolve is dropped from
   // `requested` so a later pass retries it instead of it silently reading as
   // "closed" forever.
   useEffect(() => {
     if (hoursFilterMode === 'off') return;
-    const ids = preFilteredPlaces
+    const ids = hoursCandidates
       .map((p) => p.google_place_id)
       .filter((id) => id && !requestedHoursRef.current.has(id));
     if (ids.length === 0) return;
@@ -221,20 +253,21 @@ export function App() {
     let cancelled = false;
     setHoursLoading(true);
 
+    // Runs to completion even if superseded (by a pan, say): these ids are
+    // marked as requested, so bailing out early would strand them unfetched.
+    // `cancelled` only suppresses this pass's UI updates.
     (async () => {
       let unresolved = 0;
       for (let i = 0; i < ids.length; i += api.HOURS_BATCH_SIZE) {
         const chunk = ids.slice(i, i + api.HOURS_BATCH_SIZE);
         try {
           const hours = await api.getPlaceHours(chunk);
-          if (cancelled) return;
           // Show each chunk as it lands rather than waiting for the whole set
           setPlaceHours((prev) => ({ ...prev, ...hours }));
           const missing = chunk.filter((id) => !(id in hours));
           for (const id of missing) requestedHoursRef.current.delete(id);
           unresolved += missing.length;
         } catch {
-          if (cancelled) return;
           for (const id of chunk) requestedHoursRef.current.delete(id);
           unresolved += chunk.length;
         }
@@ -251,7 +284,7 @@ export function App() {
     });
 
     return () => { cancelled = true; };
-  }, [hoursFilterMode, preFilteredPlaces]);
+  }, [hoursFilterMode, hoursCandidates]);
 
   // "Open now" is time-sensitive: re-enabling it discards hours fetched earlier
   // in the session so the answer isn't hours out of date.
@@ -579,6 +612,7 @@ export function App() {
             places={filteredPlaces}
             userLocation={geo.location}
             onSelectPlace={handleSelectPlace}
+            onViewportChange={setMapViewport}
           />
         ) : (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
