@@ -1,6 +1,6 @@
 {
-  "name": "Places",
-  "short_name": "Places",
+  "name": "Mari's list",
+  "short_name": "Mari's list",
   "description": "Personal place list manager",
   "start_url": "/",
   "display": "standalone",
